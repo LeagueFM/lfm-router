@@ -51,15 +51,51 @@ class LrResponse {
     }
 }
 
+type pathParts = ({
+    type: 'literal';
+    value: string;
+} | {
+    type: 'param';
+    name: string;
+})[];
+
+function pathToParts(path: string): pathParts {
+    if (!path.startsWith('/')) {
+        throw new Error(`Path must start with /, got ${path}`);
+    }
+
+    let parts: pathParts = [];
+
+    for (const part of path.slice(1).split('/')) {
+        if (part.startsWith(':')) {
+            parts.push({
+                type: 'param',
+                name: part.slice(1),
+            });
+        } else {
+            parts.push({
+                type: 'literal',
+                value: part,
+            });
+        }
+    }
+
+    return parts;
+}
+
 class LrHandler {
     methods: '*' | httpMethod[];
     path: string;
     callback: lrHandlerCallback;
 
+    pathParts: pathParts;
+
     constructor(methods: '*' | httpMethod[], path: string, callback: lrHandlerCallback) {
         this.methods = methods;
         this.path = path;
         this.callback = callback;
+
+        this.pathParts = pathToParts(path);
     }
 
     match(req: iLrRequest): {
@@ -68,7 +104,32 @@ class LrHandler {
         matches: true;
         handler: LrHandler;
     } {
-        // todo
+        const methodMatches = this.methods === '*' || this.methods.includes(req.method);
+
+        if (!methodMatches) return { matches: false };
+
+        if (!req.path.startsWith('/')) {
+            throw new Error(`Request path must start with /, got ${req.path}`);
+        }
+
+        const reqPathSplit = req.path.slice(1).split('/');
+
+        if (reqPathSplit.length < this.pathParts.length) return { matches: false };
+
+        for (const stringI in this.pathParts) {
+            const i = parseInt(stringI);
+
+            const pathPart = this.pathParts[i];
+            const reqPart = reqPathSplit[i];
+
+            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return { matches: false };
+            if (pathPart.type === 'param') continue;
+        }
+
+        return {
+            matches: true,
+            handler: this,
+        };
     }
 };
 
