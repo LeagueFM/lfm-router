@@ -1,15 +1,19 @@
-const handler = lrHandler('*', '/', async req => {
-    return lrNext();
-    return lrJson({ success: true });
-    return lrStatus(500, lrJson({ success: false }));
-    return lrRedirect('/');
+import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
+
+const handler1 = lrHandler('*', '/', async req => {
+    // 
 });
 
-// a router is a type of handler
+const handler2 = lrHandler('*', '/', async req => {
+    // return lrNext();
+    // return lrJson({ success: true });
+    // return lrStatus(500, lrJson({ success: false }));
+    // return lrRedirect('/');
+    return lrResponse().status(500).json({ success: false });
+});
+
 const router = lrRouter([
-    handler,
-    router2,
-    handler2
+    handler1,
 ]);
 
 const app = lrApp(router);

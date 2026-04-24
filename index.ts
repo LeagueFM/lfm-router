@@ -1,31 +1,103 @@
 const nextSymbol = Symbol('lrNext');
 
+
+type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
+
 interface iLrResponse {
     status: number;
     contentType: string;
     body: string;
+    headers: Record<string, string>;
 };
 
-type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
+interface iLrRequest {
+    method: httpMethod;
+    path: string;
+    todo: 'rest';
+};
 
-type lrRequest = 'todo: lrRequest';
-type lrReturn = iLrResponse | typeof nextSymbol;
+type lrReturn = LrResponse | typeof nextSymbol;
 
-type lrHandlerCallback = (req: lrRequest) => lrReturn;
-type lrMatcher = (req: lrRequest) => boolean;
+type lrHandlerCallback = (req: iLrRequest) => lrReturn;
 
-interface iLrHandler {
-    matcher: lrMatcher;
+class LrResponse {
+    response: iLrResponse;
+
+    constructor(response: iLrResponse) {
+        this.response = response;
+    }
+
+    status(status: number): LrResponse {
+        return new LrResponse({
+            ...this.response,
+            status
+        });
+    }
+
+    json(data: any): LrResponse {
+        return new LrResponse({
+            ...this.response,
+            contentType: 'application/json',
+            body: JSON.stringify(data),
+        });
+    }
+
+    text(text: string): LrResponse {
+        return new LrResponse({
+            ...this.response,
+            contentType: 'text/html',
+            body: text,
+        });
+    }
+}
+
+class LrHandler {
+    methods: '*' | httpMethod[];
+    path: string;
     callback: lrHandlerCallback;
+
+    constructor(methods: '*' | httpMethod[], path: string, callback: lrHandlerCallback) {
+        this.methods = methods;
+        this.path = path;
+        this.callback = callback;
+    }
+
+    match(req: iLrRequest): {
+        matches: false;
+    } | {
+        matches: true;
+        handler: LrHandler;
+    } {
+        // todo
+    }
 };
 
 class LrRouter {
-    handlers: iLrHandler[];
+    handlers: (LrHandler | LrRouter)[];
 
-    constructor(handlers: iLrHandler[]) {
+    constructor(handlers: (LrHandler | LrRouter)[]) {
         this.handlers = handlers;
     }
-}
+
+    match(req: iLrRequest): {
+        matches: false;
+    } | {
+        matches: true;
+        handler: LrHandler;
+    } {
+        for (const handler of this.handlers) {
+            const result = handler.match(req);
+
+            if (result.matches) {
+                return result;
+            }
+        }
+
+        return {
+            matches: false,
+        };
+    }
+};
 
 class LrApp {
     router: LrRouter;
@@ -33,4 +105,29 @@ class LrApp {
     constructor(router: LrRouter) {
         this.router = router;
     }
+};
+
+export function lrHandler(methods: '*' | httpMethod[], path: string, callback: lrHandlerCallback): LrHandler {
+    return new LrHandler(methods, path, callback);
+}
+
+export function lrRouter(handlers: (LrHandler | LrRouter)[]): LrRouter {
+    return new LrRouter(handlers);
+}
+
+export function lrApp(router: LrRouter): LrApp {
+    return new LrApp(router);
+}
+
+export function lrNext() {
+    return nextSymbol;
+}
+
+export function lrResponse() {
+    return new LrResponse({
+        status: 200,
+        contentType: 'text/html',
+        body: '',
+        headers: {},
+    });
 }
