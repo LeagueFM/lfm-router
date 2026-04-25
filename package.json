@@ -1,0 +1,13 @@
+{
+  "name": "lfm-router",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {},
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}
