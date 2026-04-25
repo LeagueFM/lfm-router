@@ -3,7 +3,7 @@ import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToPa
 // todo: only type import and dev dep
 import { z } from 'zod';
 
-const nextSymbol = Symbol('lrNext');
+const nextSymbol = Symbol('lrNext') as unknown as { __lrNext: true };
 
 export function lrNext() {
     return nextSymbol;
@@ -323,6 +323,69 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
         };
     }
 };
+
+// handlers can't be typed more specific here
+type canRouterCallNext<handlers extends any[]> =
+    handlers extends [...infer firstHandlers, infer lastHandler]
+    ? (
+        lastHandler extends LrHandler<infer lastHandlerMethods, infer lastHandlerPath, infer lastHandlerValidations, infer lastHandlerCallback>
+        ? (
+            (typeof nextSymbol) extends ReturnType<lastHandlerCallback> ? true : false
+        ) : (
+            lastHandler extends LrRouter<infer lastHandlerPathPrefix, infer lastHandlerHandlers>
+            ? (
+                canRouterCallNext<lastHandlerHandlers>
+            ) : never // invalid lastHandler
+        )
+    ) : false;
+
+type routerReturnInternal<
+    pathPrefix extends '' | `/${string}`,
+    handlers extends any[], // can't be typed better here
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    handlers extends [infer firstHandler, ...infer restHandlers]
+    ? (
+        firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
+        ? (
+            matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
+            ? (
+                (typeof nextSymbol) extends ReturnType<firstHandlerCallback> ? (
+                    Exclude<ReturnType<firstHandlerCallback>, typeof nextSymbol | Promise<typeof nextSymbol>> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                ) : (Promise<typeof nextSymbol>) extends ReturnType<firstHandlerCallback> ? (
+                    Exclude<ReturnType<firstHandlerCallback>, typeof nextSymbol | Promise<typeof nextSymbol>> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                ) : (
+                    Exclude<ReturnType<firstHandlerCallback>, typeof nextSymbol | Promise<typeof nextSymbol>>
+                )
+            )
+            : routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+        ) : (
+            firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
+            ? (
+                canRouterCallNext<firstHandlerHandlers> extends true
+                ? (
+                    routerReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
+                    | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                ) : (
+                    routerReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
+                )
+            ) : never
+        )
+    ) : (
+        // no handlers
+        never
+    );
+
+export type lrRouterReturn<
+    router extends LrRouter<'' | `/${string}`, generalHandler[]>,
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    router extends LrRouter<infer pathPrefix, infer handlers>
+    ? (
+        routerReturnInternal<pathPrefix, handlers, testMethod, testPath>
+    ) : never;
 
 export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
     return new LrRouter(pathPrefix, handlers);
