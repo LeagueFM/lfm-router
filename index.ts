@@ -181,6 +181,7 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
                 testPath
             >['matches'] extends true
             ? (
+                // (typeof nextSymbol) extends ReturnType<firstHandlerCallback> ? (
                 [
                     {
                         type: 'handler';
@@ -188,6 +189,15 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
                     },
                     ...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
                 ]
+                // ) :
+                // (
+                //     [
+                //         {
+                //             type: 'handler';
+                //             handler: LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>;
+                //         }
+                //     ]
+                // )
             ) : (
                 routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
             )
@@ -196,6 +206,8 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
             ? (
                 routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends [...infer firstElements, infer lastElement]
                 ? (
+                    // canRouterCallNext<firstHandlerHandlers> extends true
+                    // ? (
                     [
                         {
                             type: 'router';
@@ -204,6 +216,15 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
                         },
                         ...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
                     ]
+                    // ) : (
+                    //     [
+                    //         {
+                    //             type: 'router';
+                    //             router: LrRouter<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers>;
+                    //             matches: [...firstElements, lastElement];
+                    //         }
+                    //     ]
+                    // )
                 )
                 // empty return, so router has no matches
                 : [...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>]
