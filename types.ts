@@ -5,7 +5,7 @@ type partMatchPaths<definitionPart extends string, testPart extends string> =
     : definitionPart extends testPart ? true
     : false;
 
-type matchPaths<definition extends `/${string}`, test extends `/${string}`> =
+type matchPaths<definition extends string, test extends `/${string}`> =
     definition extends `/${infer definitionPart}/${infer definitionRest}`
     ? (
         test extends `/${infer testPart}/${infer testRest}`
@@ -42,7 +42,7 @@ type matchMethods<definitionMethods extends '*' | httpMethod[], testMethod exten
     : testMethod extends definitionMethods[number] ? true
     : false;
 
-export type matchRequest<definitionMethods extends '*' | httpMethod[], definitionPath extends `/${string}`, testMethod extends httpMethod, testPath extends `/${string}`> =
+export type matchRequest<definitionMethods extends '*' | httpMethod[], definitionPath extends string, testMethod extends httpMethod, testPath extends `/${string}`> =
     matchMethods<definitionMethods, testMethod> extends true
     ? (
         matchPaths<definitionPath, testPath> extends true

@@ -12,7 +12,7 @@ const handler2 = lrHandler('*', '/', async req => {
     return lrResponse().status(500).json({ success: false });
 });
 
-const router = lrRouter([
+const router = lrRouter('/hi', [
     handler1,
 ]);
 

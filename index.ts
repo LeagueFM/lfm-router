@@ -96,7 +96,7 @@ type lrHandlerReturn = LrResponse<lrResponseResponse> | typeof nextSymbol;
 
 type lrHandlerCallback = (req: lrRequest<httpMethod, `/${string}`>) => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
-type handlerMatchReturn<callback extends lrHandlerCallback, definitionMethods extends '*' | httpMethod[], definitionPath extends `/${string}`, testMethod extends httpMethod, testPath extends `/${string}`> =
+type handlerMatchReturn<callback extends lrHandlerCallback, definitionMethods extends '*' | httpMethod[], definitionPath extends string, testMethod extends httpMethod, testPath extends `/${string}`> =
     matchRequest<definitionMethods, definitionPath, testMethod, testPath> extends true ? {
         matches: true;
         handler: LrHandler<definitionMethods, definitionPath, callback>;
@@ -106,7 +106,7 @@ type handlerMatchReturn<callback extends lrHandlerCallback, definitionMethods ex
     } :
     never;
 
-class LrHandler<methods extends '*' | httpMethod[], path extends `/${string}`, callback extends lrHandlerCallback> {
+class LrHandler<methods extends '*' | httpMethod[], path extends string, callback extends lrHandlerCallback> {
     methods: methods;
     path: path;
     callback: callback;
@@ -152,32 +152,72 @@ class LrHandler<methods extends '*' | httpMethod[], path extends `/${string}`, c
     }
 };
 
-type generalHandler = LrHandler<'*', `/${string}`, lrHandlerCallback> | LrRouter;
+type generalHandler = LrHandler<'*' | httpMethod[], `/${string}`, lrHandlerCallback> | LrRouter<'' | `/${string}`>;
 
-class LrRouter<handlers extends generalHandler[] = generalHandler[]> {
+// handlers can't be typed more specific here. this doesn't matter, because if handlers is invalid, never will be returned
+type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends any[], testMethod extends httpMethod, testPath extends `/${string}`> =
+    handlers extends [infer firstHandler, ...infer restHandlers]
+    ? (
+        firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerCallback>
+        ? (
+            handlerMatchReturn<
+                firstHandlerCallback,
+                firstHandlerMethods,
+                `${pathPrefix}${firstHandlerPath}`,
+                testMethod,
+                testPath
+            >['matches'] extends true
+            ? (
+                (typeof nextSymbol) extends ReturnType<firstHandlerCallback> ? (
+                    [
+                        LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>,
+                        ...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
+                    ]
+                ) :
+                (
+                    [LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>]
+                )
+            ) : (
+                routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
+            )
+        ) : (
+            firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
+            ? (
+                routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, [...firstHandlerHandlers, ...restHandlers], testMethod, testPath>
+            ) : never
+        )
+    ) : [];
+
+type b = (typeof nextSymbol) extends ReturnType<lrHandlerCallback> ? true : false;
+
+type a = routerMatchReturn<'', [
+    LrHandler<['GET'], '/foo/*', () => LrResponse<lrResponseResponse>>,
+    LrHandler<['GET'], '/:param', lrHandlerCallback>,
+], 'GET', '/foo'>;
+
+class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[] = generalHandler[]> {
+    pathPrefix: pathPrefix;
     handlers: handlers;
 
-    constructor(handlers: handlers) {
+    constructor(pathPrefix: pathPrefix, handlers: handlers) {
+        this.pathPrefix = pathPrefix;
         this.handlers = handlers;
     }
 
-    match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath): {
-        matches: false;
-    } | {
-        matches: true;
-        handler: LrHandler;
-    } {
-        for (const handler of this.handlers) {
-            const result = handler.match(req);
+    match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath): 'todo' {
+        // todo: this function should return all handlers that match, because a handler could call lrNext
 
-            if (result.matches) {
-                return result;
-            }
-        }
+        // for (const handler of this.handlers) {
+        //     const result = handler.match(method, `${this.pathPrefix}${path}`);
 
-        return {
-            matches: false,
-        };
+        //     if (result.matches) {
+        //         return result;
+        //     }
+        // }
+
+        // return {
+        //     matches: false,
+        // };
     }
 };
 
@@ -193,8 +233,8 @@ export function lrHandler(methods: '*' | httpMethod[], path: string, callback: l
     return new LrHandler(methods, path, callback);
 }
 
-export function lrRouter(handlers: (LrHandler | LrRouter)[]): LrRouter {
-    return new LrRouter(handlers);
+export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
+    return new LrRouter(pathPrefix, handlers);
 }
 
 export function lrApp(router: LrRouter): LrApp {
