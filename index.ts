@@ -384,6 +384,64 @@ export type lrRouterReturn<
         routerReturnInternal<pathPrefix, handlers, testMethod, testPath>
     ) : never;
 
+type or<a, b> = a extends true ? true : b;
+
+type validationsToRequirements<
+    validations extends generalValidations<any>
+> =
+    {
+        body: validations extends { body: z.ZodType } ? z.input<validations['body']> : any;
+        query: validations extends { query: z.ZodType } ? z.input<validations['query']> : any;
+    };
+
+type routerRequirementsInternal<
+    pathPrefix extends '' | `/${string}`,
+    handlers extends any[], // can't be typed better here
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    handlers extends [infer firstHandler, ...infer restHandlers]
+    ? (
+        firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
+        ? (
+            matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
+            ? (
+                (typeof lrNext) extends ReturnType<firstHandlerCallback> ? (
+                    validationsToRequirements<firstHandlerValidations> & routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
+                ) : (Promise<typeof lrNext>) extends ReturnType<firstHandlerCallback> ? (
+                    validationsToRequirements<firstHandlerValidations> & routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
+                ) : (
+                    validationsToRequirements<firstHandlerValidations>
+                )
+            ) : routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
+        ) : (
+            firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
+            ? (
+                canRouterCallNext<firstHandlerHandlers> extends true
+                ? (
+                    routerRequirementsInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
+                    & routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
+                ) : (
+                    routerRequirementsInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
+                )
+            ) : never
+        )
+    ) : (
+        // no handlers
+        { body: any; query: Record<string, string> }
+    )
+    ;
+
+export type lrRouterRequirements<
+    router extends LrRouter<'' | `/${string}`, generalHandler[]>,
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    router extends LrRouter<infer pathPrefix, infer handlers>
+    ? (
+        routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>
+    ) : never;
+
 export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
     return new LrRouter(pathPrefix, handlers);
 }

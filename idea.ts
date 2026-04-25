@@ -1,13 +1,14 @@
 import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
-import type { lrRouterReturn } from ".";
+import type { lrRouterReturn, lrRouterRequirements } from ".";
 import { z } from 'zod';
 
 const handler1 = lrHandler('*', '/foo/*', {
     body: z.object({
         name: z.string(),
+        foo: z.number()
     }),
     query: z.object({
-        hi: z.string()
+        hi: z.string(),
     })
 }, async req => {
     req.method;
@@ -19,7 +20,11 @@ const handler1 = lrHandler('*', '/foo/*', {
     return lrNext;
 });
 
-const handler2 = lrHandler('*', '/*', {}, async req => {
+const handler2 = lrHandler('*', '/*', {
+    // body: z.object({
+    //     foo: z.literal(2)
+    // })
+}, async req => {
     // return lrNext();
     // return lrJson({ success: true });
     // return lrStatus(500, lrJson({ success: false }));
@@ -32,9 +37,8 @@ const router = lrRouter('', [
     handler2,
 ] as const);
 
-type a = lrRouterReturn<typeof router, 'GET', '/foo/hi'>;
+type a = lrRouterRequirements<typeof router, 'GET', '/foo/hi'>;
 
-// todo: get type of what is needed in request (body, query)
 // todo: execute function
 
 // const a = router.match('GET', '/');
