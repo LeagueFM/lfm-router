@@ -191,16 +191,17 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
         ) : (
             firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
             ? (
-                routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends []
-                ? [...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>]
-                : [
+                routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends [...infer firstElements, infer lastElement]
+                ? [
                     {
                         type: 'router';
                         router: LrRouter<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers>;
-                        matches: routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>;
+                        matches: [...firstElements, lastElement];
                     }
                     // todo: rest handlers (if last match of router can call next)
                 ]
+                // empty return, so router has no matches
+                : [...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>]
             ) : never
         )
     ) : []; // handlers is empty array
