@@ -50,3 +50,50 @@ export type matchRequest<definitionMethods extends '*' | httpMethod[], definitio
         : false
     ) : false;
 
+export type pathDefinitionToType<definitionPath extends string> =
+    definitionPath extends `/${infer part}/${infer rest}`
+    ? (
+        part extends '*' ? never
+        : (
+            part extends `:${string}`
+            ? `/${string}${pathDefinitionToType<`/${rest}`>}`
+            : `/${part}${pathDefinitionToType<`/${rest}`>}`
+        )
+    ) : (
+        definitionPath extends `/${infer part}`
+        ? (
+            part extends '*' ? `/${string}`
+            : `/${part}`
+        ) : never
+    );
+
+type pathDefinitionToParamNames<definitionPath extends string> =
+    definitionPath extends `/${infer part}/${infer rest}`
+    ? (
+        part extends '*' ? never
+        : (
+            part extends `:${infer paramName}`
+            ? ([paramName, ...pathDefinitionToParamNames<`/${rest}`>])
+            : pathDefinitionToParamNames<`/${rest}`>
+        )
+    ) : (
+        definitionPath extends `/${infer part}`
+        ? (
+            part extends '*' ? ['*']
+            : (
+                part extends `:${infer paramName}`
+                ? [paramName]
+                : []
+            )
+        ) : never
+    );
+
+export type pathDefinitionToParams<definitionPath extends string> =
+    pathDefinitionToParamNames<definitionPath> extends never ? never
+    : {
+        [k in pathDefinitionToParamNames<definitionPath>[number]]: string;
+    };
+
+export type methodsDefinitionToMethods<definitionMethods extends '*' | httpMethod[]> =
+    definitionMethods extends '*' ? httpMethod
+    : definitionMethods[number];

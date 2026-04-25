@@ -1,4 +1,4 @@
-import type { httpMethod, matchRequest } from "./types";
+import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods } from "./types";
 
 const nextSymbol = Symbol('lrNext');
 
@@ -17,10 +17,12 @@ type lrResponseResponse = {
     headers: Record<string, string>;
 };
 
-type lrRequest<method extends httpMethod, path extends `/${string}`> = {
+type lrRequest<method extends httpMethod, path extends `/${string}`, params extends Record<string, string>, query extends Record<string, string>, body extends any> = {
     method: method;
     path: path;
-    todo: 'rest';
+    params: params;
+    query: query;
+    body: body;
 };
 
 class LrResponse<response extends lrResponseResponse> {
@@ -66,6 +68,8 @@ type pathParts = ({
 } | {
     type: 'param';
     name: string;
+} | {
+    type: 'rest';
 })[];
 
 function pathToParts(path: string): pathParts {
@@ -94,9 +98,17 @@ function pathToParts(path: string): pathParts {
 
 type lrHandlerReturn = LrResponse<lrResponseResponse> | typeof nextSymbol;
 
-type lrHandlerCallback = (req: lrRequest<httpMethod, `/${string}`>) => (lrHandlerReturn | Promise<lrHandlerReturn>);
+type lrHandlerCallback<method extends httpMethod, path extends `/${string}`, params extends Record<string, string>, query extends Record<string, string>, body extends any> =
+    (req: lrRequest<method, path, params, query, body>)
+        => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
-type handlerMatchReturn<callback extends lrHandlerCallback, definitionMethods extends '*' | httpMethod[], definitionPath extends string, testMethod extends httpMethod, testPath extends `/${string}`> =
+type handlerMatchReturn<
+    callback extends lrHandlerCallback<httpMethod, `/${string}`, Record<string, string>, Record<string, string>, any>,
+    definitionMethods extends '*' | httpMethod[],
+    definitionPath extends string,
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
     matchRequest<definitionMethods, definitionPath, testMethod, testPath> extends true ? {
         matches: true;
         handler: LrHandler<definitionMethods, definitionPath, callback>;
@@ -106,7 +118,18 @@ type handlerMatchReturn<callback extends lrHandlerCallback, definitionMethods ex
     } :
     never;
 
-class LrHandler<methods extends '*' | httpMethod[], path extends string, callback extends lrHandlerCallback> {
+class LrHandler<
+    methods extends '*' | httpMethod[],
+    path extends string,
+    // todo: validations
+    callback extends lrHandlerCallback<
+        methodsDefinitionToMethods<methods>,
+        pathDefinitionToType<path>,
+        pathDefinitionToParams<path>, // todo: use validations
+        Record<string, string>, // todo: use validations
+        any // todo: use validations
+    >
+> {
     methods: methods;
     path: path;
     callback: callback;
