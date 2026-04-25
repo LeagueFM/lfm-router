@@ -1,15 +1,15 @@
 import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
 import { z } from 'zod';
 
-const handler1 = lrHandler('*', '/:name/:id/*', {
+const handler1 = lrHandler('*', '/:name/:id/foo/*', {
     body: z.object({
         name: z.string(),
     }),
-    params: z.object({
-        name: z.string()
-        // typescript error if not all properties present
+    query: z.object({
+        hi: z.string()
     })
 }, async req => {
+    req.method;
     req.path;
     req.params;
     req.body;

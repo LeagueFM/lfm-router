@@ -1,4 +1,7 @@
 import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods } from "./types";
+// import type { z } from 'zod';
+// todo: only type import and dev dep
+import { z } from 'zod';
 
 const nextSymbol = Symbol('lrNext');
 
@@ -79,8 +82,21 @@ function pathToParts(path: string): pathParts {
 
     let parts: pathParts = [];
 
-    for (const part of path.slice(1).split('/')) {
-        if (part.startsWith(':')) {
+    for (const stringI in path.slice(1).split('/')) {
+        const i = parseInt(stringI);
+
+        const part = path.slice(1).split('/')[i]!;
+        const isLast = i === path.slice(1).split('/').length - 1;
+
+        if (part === '*') {
+            if (!isLast) {
+                throw new Error('* path part must be last');
+            }
+
+            parts.push({
+                type: 'rest',
+            });
+        } else if (part.startsWith(':')) {
             parts.push({
                 type: 'param',
                 name: part.slice(1),
@@ -103,52 +119,67 @@ type lrHandlerCallback<method extends httpMethod, path extends `/${string}`, par
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
 type handlerMatchReturn<
-    callback extends lrHandlerCallback<httpMethod, `/${string}`, Record<string, string>, Record<string, string>, any>,
-    definitionMethods extends '*' | httpMethod[],
-    definitionPath extends string,
+    methods extends '*' | httpMethod[],
+    path extends string,
+    validations extends generalValidations<pathDefinitionToParams<path>>,
+    callback extends lrHandlerCallback<
+        methodsDefinitionToMethods<methods>,
+        pathDefinitionToType<path>,
+        validations extends { params: any } ? z.output<validations['params']> : pathDefinitionToParams<path>,
+        validations extends { query: any } ? z.output<validations['query']> : Record<string, string>,
+        validations extends { body: any } ? z.output<validations['body']> : unknown
+    >,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
-    matchRequest<definitionMethods, definitionPath, testMethod, testPath> extends true ? {
+    matchRequest<methods, path, testMethod, testPath> extends true ? {
         matches: true;
-        handler: LrHandler<definitionMethods, definitionPath, callback>;
+        handler: LrHandler<methods, path, validations, callback>;
     } :
-    matchRequest<definitionMethods, definitionPath, testMethod, testPath> extends false ? {
+    matchRequest<methods, path, testMethod, testPath> extends false ? {
         matches: false;
     } :
     never;
 
+type generalValidations<params extends object> = {
+    body?: z.ZodType;
+    query?: z.ZodType<unknown, Record<string, string>>;
+    params?: z.ZodType<unknown, params>;
+};
+
 class LrHandler<
     methods extends '*' | httpMethod[],
     path extends string,
-    // todo: validations
+    validations extends generalValidations<pathDefinitionToParams<path>>,
     callback extends lrHandlerCallback<
         methodsDefinitionToMethods<methods>,
         pathDefinitionToType<path>,
-        pathDefinitionToParams<path>, // todo: use validations
-        Record<string, string>, // todo: use validations
-        any // todo: use validations
+        validations extends { params: any } ? z.output<validations['params']> : pathDefinitionToParams<path>,
+        validations extends { query: any } ? z.output<validations['query']> : Record<string, string>,
+        validations extends { body: any } ? z.output<validations['body']> : unknown
     >
 > {
     methods: methods;
     path: path;
+    validations: validations;
     callback: callback;
 
     pathParts: pathParts;
 
-    constructor(methods: methods, path: path, callback: callback) {
+    constructor(methods: methods, path: path, validations: validations, callback: callback) {
         this.methods = methods;
         this.path = path;
+        this.validations = validations;
         this.callback = callback;
 
         this.pathParts = pathToParts(path);
     }
 
     match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
-        handlerMatchReturn<callback, methods, path, testMethod, testPath> {
+        handlerMatchReturn<methods, path, validations, callback, testMethod, testPath> {
         const methodMatches = this.methods === '*' || this.methods.includes(method);
 
-        if (!methodMatches) return { matches: false } as handlerMatchReturn<callback, methods, path, testMethod, testPath>;
+        if (!methodMatches) return { matches: false } as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
 
         if (!path.startsWith('/')) {
             throw new Error(`Request path must start with /, got ${path}`);
@@ -156,115 +187,55 @@ class LrHandler<
 
         const reqPathSplit = path.slice(1).split('/');
 
-        if (reqPathSplit.length < this.pathParts.length) return { matches: false } as handlerMatchReturn<callback, methods, path, testMethod, testPath>;
+        if (reqPathSplit.length < this.pathParts.length) return { matches: false } as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+
+        let hasRest = false;
 
         for (const stringI in this.pathParts) {
             const i = parseInt(stringI);
 
-            const pathPart = this.pathParts[i];
+            const pathPart = this.pathParts[i]!;
             const reqPart = reqPathSplit[i];
 
-            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return { matches: false } as handlerMatchReturn<callback, methods, path, testMethod, testPath>;
+            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return { matches: false } as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
             if (pathPart.type === 'param') continue;
+            if (pathPart.type === 'rest') {
+                hasRest = true;
+                break;
+            }
+        }
+
+        if (reqPathSplit.length > this.pathParts.length) {
+            if (hasRest) {
+                return { matches: true, handler: this } as unknown as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+            } else {
+                return { matches: false } as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+            }
         }
 
         return {
             matches: true,
             handler: this,
-        } as unknown as handlerMatchReturn<callback, methods, path, testMethod, testPath>;
+        } as unknown as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
     }
 };
 
-// handlers can't be typed more specific here
-type canRouterCallNext<handlers extends any[]> =
-    handlers extends [...infer firstHandlers, infer lastHandler]
-    ? (
-        lastHandler extends LrHandler<infer lastHandlerMethods, infer lastHandlerPath, infer lastHandlerCallback>
-        ? (
-            (typeof nextSymbol) extends ReturnType<lastHandlerCallback> ? true : false
-        ) : (
-            lastHandler extends LrRouter<infer lastHandlerPathPrefix, infer lastHandlerHandlers>
-            ? (
-                canRouterCallNext<lastHandlerHandlers>
-            ) : never // invalid lastHandler
-        )
-    ) : false;
-
-// handlers can't be typed more specific here. this doesn't matter, because if handlers is invalid, never will be returned
-type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends any[], testMethod extends httpMethod, testPath extends `/${string}`> =
-    handlers extends [infer firstHandler, ...infer restHandlers]
-    ? (
-        firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerCallback>
-        ? (
-            handlerMatchReturn<
-                firstHandlerCallback,
-                firstHandlerMethods,
-                `${pathPrefix}${firstHandlerPath}`,
-                testMethod,
-                testPath
-            >['matches'] extends true
-            ? (
-                // (typeof nextSymbol) extends ReturnType<firstHandlerCallback> ? (
-                [
-                    {
-                        type: 'handler';
-                        handler: LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>;
-                    },
-                    ...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
-                ]
-                // ) :
-                // (
-                //     [
-                //         {
-                //             type: 'handler';
-                //             handler: LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>;
-                //         }
-                //     ]
-                // )
-            ) : (
-                routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
-            )
-        ) : (
-            firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
-            ? (
-                routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends [...infer firstElements, infer lastElement]
-                ? (
-                    // canRouterCallNext<firstHandlerHandlers> extends true
-                    // ? (
-                    [
-                        {
-                            type: 'router';
-                            router: LrRouter<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers>;
-                            matches: [...firstElements, lastElement];
-                        },
-                        ...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
-                    ]
-                    // ) : (
-                    //     [
-                    //         {
-                    //             type: 'router';
-                    //             router: LrRouter<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers>;
-                    //             matches: [...firstElements, lastElement];
-                    //         }
-                    //     ]
-                    // )
-                )
-                // empty return, so router has no matches
-                : [...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>]
-            ) : never
-        )
-    ) : []; // handlers is empty array
-
-type a = routerMatchReturn<'', [
-    LrHandler<['GET'], '/foo/*', lrHandlerCallback>,
-    LrRouter<'/foo', [
-        LrHandler<['GET'], '/:param', () => LrResponse<lrResponseResponse>>,
-    ]>,
-    LrHandler<['GET'], '/foo/*', lrHandlerCallback>,
-], 'GET', '/foo/hi'>;
+export function lrHandler<
+    methods extends '*' | httpMethod[],
+    path extends `/${string}`,
+    validations extends generalValidations<pathDefinitionToParams<path>>,
+    callback extends lrHandlerCallback<
+        methodsDefinitionToMethods<methods>,
+        pathDefinitionToType<path>,
+        validations extends { params: any } ? z.output<validations['params']> : pathDefinitionToParams<path>,
+        validations extends { query: any } ? z.output<validations['query']> : Record<string, string>,
+        validations extends { body: any } ? z.output<validations['body']> : unknown
+    >
+>(methods: methods, path: path, validations: validations, callback: callback): LrHandler<methods, path, validations, callback> {
+    return new LrHandler(methods, path, validations, callback);
+}
 
 // todo: think if there is a better type for handlers
-
 // handlers can't be typed more specific here
 class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
     pathPrefix: pathPrefix;
@@ -299,10 +270,6 @@ class LrApp {
         this.router = router;
     }
 };
-
-export function lrHandler(methods: '*' | httpMethod[], path: string, callback: lrHandlerCallback): LrHandler {
-    return new LrHandler(methods, path, callback);
-}
 
 export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
     return new LrRouter(pathPrefix, handlers);
