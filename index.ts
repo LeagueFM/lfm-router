@@ -21,7 +21,13 @@ type lrResponseResponse = {
     headers: Record<string, string>;
 };
 
-type lrRequest<method extends httpMethod, path extends `/${string}`, params extends Record<string, string>, query extends Record<string, string>, body extends any> = {
+type lrRequest<
+    method extends httpMethod,
+    path extends `/${string}`,
+    params extends Record<string, string>,
+    query extends Record<string, string>,
+    body extends any
+> = {
     method: method;
     path: path;
     params: params;
