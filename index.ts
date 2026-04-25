@@ -1,52 +1,61 @@
+import type { httpMethod, matchRequest } from "./types";
+
 const nextSymbol = Symbol('lrNext');
 
+type responseBody = {
+    toStringifyBody: any;
+    body: null;
+} | {
+    toStringifyBody: null;
+    body: string;
+};
 
-type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
-
-interface iLrResponse {
+type lrResponseResponse = {
     status: number;
     contentType: string;
-    body: string;
+    body: responseBody;
     headers: Record<string, string>;
 };
 
-interface iLrRequest {
-    method: httpMethod;
-    path: string;
+type lrRequest<method extends httpMethod, path extends `/${string}`> = {
+    method: method;
+    path: path;
     todo: 'rest';
 };
 
-type lrReturn = LrResponse | typeof nextSymbol;
+class LrResponse<response extends lrResponseResponse> {
+    response: response;
 
-type lrHandlerCallback = (req: iLrRequest) => lrReturn;
-
-class LrResponse {
-    response: iLrResponse;
-
-    constructor(response: iLrResponse) {
+    constructor(response: response) {
         this.response = response;
     }
 
-    status(status: number): LrResponse {
+    status<status extends number>(status: status): LrResponse<Omit<response, 'status'> & { status: status }> {
         return new LrResponse({
             ...this.response,
             status
         });
     }
 
-    json(data: any): LrResponse {
+    json<data>(data: data): LrResponse<Omit<response, 'contentType' | 'body'> & { contentType: 'application/json'; body: { toStringifyBody: data; body: null } }> {
         return new LrResponse({
             ...this.response,
             contentType: 'application/json',
-            body: JSON.stringify(data),
+            body: {
+                toStringifyBody: data,
+                body: null
+            }
         });
     }
 
-    text(text: string): LrResponse {
+    text(text: string): LrResponse<Omit<response, 'contentType' | 'body'> & { contentType: 'text/html'; body: { toStringifyBody: null; body: string } }> {
         return new LrResponse({
             ...this.response,
             contentType: 'text/html',
-            body: text,
+            body: {
+                toStringifyBody: null,
+                body: text
+            }
         });
     }
 }
@@ -83,14 +92,28 @@ function pathToParts(path: string): pathParts {
     return parts;
 }
 
-class LrHandler {
-    methods: '*' | httpMethod[];
-    path: string;
-    callback: lrHandlerCallback;
+type lrHandlerReturn = LrResponse<lrResponseResponse> | typeof nextSymbol;
+
+type lrHandlerCallback = (req: lrRequest<httpMethod, `/${string}`>) => (lrHandlerReturn | Promise<lrHandlerReturn>);
+
+type handlerMatchReturn<callback extends lrHandlerCallback, definitionMethods extends '*' | httpMethod[], definitionPath extends `/${string}`, testMethod extends httpMethod, testPath extends `/${string}`> =
+    matchRequest<definitionMethods, definitionPath, testMethod, testPath> extends true ? {
+        matches: true;
+        handler: LrHandler<definitionMethods, definitionPath, callback>;
+    } :
+    matchRequest<definitionMethods, definitionPath, testMethod, testPath> extends false ? {
+        matches: false;
+    } :
+    never;
+
+class LrHandler<methods extends '*' | httpMethod[], path extends `/${string}`, callback extends lrHandlerCallback> {
+    methods: methods;
+    path: path;
+    callback: callback;
 
     pathParts: pathParts;
 
-    constructor(methods: '*' | httpMethod[], path: string, callback: lrHandlerCallback) {
+    constructor(methods: methods, path: path, callback: callback) {
         this.methods = methods;
         this.path = path;
         this.callback = callback;
@@ -98,23 +121,19 @@ class LrHandler {
         this.pathParts = pathToParts(path);
     }
 
-    match(req: iLrRequest): {
-        matches: false;
-    } | {
-        matches: true;
-        handler: LrHandler;
-    } {
-        const methodMatches = this.methods === '*' || this.methods.includes(req.method);
+    match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
+        handlerMatchReturn<callback, methods, path, testMethod, testPath> {
+        const methodMatches = this.methods === '*' || this.methods.includes(method);
 
-        if (!methodMatches) return { matches: false };
+        if (!methodMatches) return { matches: false } as handlerMatchReturn<callback, methods, path, testMethod, testPath>;
 
-        if (!req.path.startsWith('/')) {
-            throw new Error(`Request path must start with /, got ${req.path}`);
+        if (!path.startsWith('/')) {
+            throw new Error(`Request path must start with /, got ${path}`);
         }
 
-        const reqPathSplit = req.path.slice(1).split('/');
+        const reqPathSplit = path.slice(1).split('/');
 
-        if (reqPathSplit.length < this.pathParts.length) return { matches: false };
+        if (reqPathSplit.length < this.pathParts.length) return { matches: false } as handlerMatchReturn<callback, methods, path, testMethod, testPath>;
 
         for (const stringI in this.pathParts) {
             const i = parseInt(stringI);
@@ -122,25 +141,27 @@ class LrHandler {
             const pathPart = this.pathParts[i];
             const reqPart = reqPathSplit[i];
 
-            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return { matches: false };
+            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return { matches: false } as handlerMatchReturn<callback, methods, path, testMethod, testPath>;
             if (pathPart.type === 'param') continue;
         }
 
         return {
             matches: true,
             handler: this,
-        };
+        } as unknown as handlerMatchReturn<callback, methods, path, testMethod, testPath>;
     }
 };
 
-class LrRouter {
-    handlers: (LrHandler | LrRouter)[];
+type generalHandlers = LrHandler<'*', `/${string}`, lrHandlerCallback> | LrRouter;
 
-    constructor(handlers: (LrHandler | LrRouter)[]) {
+class LrRouter<handlers extends generalHandlers = generalHandlers> {
+    handlers: handlers;
+
+    constructor(handlers: handlers) {
         this.handlers = handlers;
     }
 
-    match(req: iLrRequest): {
+    match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath): {
         matches: false;
     } | {
         matches: true;
