@@ -152,7 +152,20 @@ class LrHandler<methods extends '*' | httpMethod[], path extends string, callbac
     }
 };
 
-type generalHandler = LrHandler<'*' | httpMethod[], `/${string}`, lrHandlerCallback> | LrRouter<'' | `/${string}`>;
+// handlers can't be typed more specific here
+type canRouterCallNext<handlers extends any[]> =
+    handlers extends [...infer firstHandlers, infer lastHandler]
+    ? (
+        lastHandler extends LrHandler<infer lastHandlerMethods, infer lastHandlerPath, infer lastHandlerCallback>
+        ? (
+            (typeof nextSymbol) extends ReturnType<lastHandlerCallback> ? true : false
+        ) : (
+            lastHandler extends LrRouter<infer lastHandlerPathPrefix, infer lastHandlerHandlers>
+            ? (
+                canRouterCallNext<lastHandlerHandlers>
+            ) : never // invalid lastHandler
+        )
+    ) : false;
 
 // handlers can't be typed more specific here. this doesn't matter, because if handlers is invalid, never will be returned
 type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends any[], testMethod extends httpMethod, testPath extends `/${string}`> =
@@ -192,14 +205,27 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
             firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
             ? (
                 routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends [...infer firstElements, infer lastElement]
-                ? [
-                    {
-                        type: 'router';
-                        router: LrRouter<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers>;
-                        matches: [...firstElements, lastElement];
-                    }
-                    // todo: rest handlers (if last match of router can call next)
-                ]
+                ? (
+                    canRouterCallNext<firstHandlerHandlers> extends true
+                    ? (
+                        [
+                            {
+                                type: 'router';
+                                router: LrRouter<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers>;
+                                matches: [...firstElements, lastElement];
+                            },
+                            ...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
+                        ]
+                    ) : (
+                        [
+                            {
+                                type: 'router';
+                                router: LrRouter<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers>;
+                                matches: [...firstElements, lastElement];
+                            }
+                        ]
+                    )
+                )
                 // empty return, so router has no matches
                 : [...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>]
             ) : never
@@ -209,13 +235,15 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
 type a = routerMatchReturn<'', [
     LrHandler<['GET'], '/foo/*', lrHandlerCallback>,
     LrRouter<'/foo', [
-        LrHandler<['GET'], '/:param', lrHandlerCallback>,
+        LrHandler<['GET'], '/:param', () => LrResponse<lrResponseResponse>>,
     ]>,
-    LrHandler<['GET'], '/:param', lrHandlerCallback>,
+    LrHandler<['GET'], '/foo/*', lrHandlerCallback>,
 ], 'GET', '/foo/hi'>;
 
+// todo: think if there is a better type for handlers
+
 // handlers can't be typed more specific here
-class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[] = generalHandler[]> {
+class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
     pathPrefix: pathPrefix;
     handlers: handlers;
 
