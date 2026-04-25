@@ -5,6 +5,10 @@ import { z } from 'zod';
 
 const nextSymbol = Symbol('lrNext');
 
+export function lrNext() {
+    return nextSymbol;
+}
+
 type responseBody = {
     toStringifyBody: any;
     body: null;
@@ -65,6 +69,18 @@ class LrResponse<response extends lrResponseResponse> {
     }
 }
 
+export function lrResponse() {
+    return new LrResponse({
+        status: 200,
+        contentType: 'text/html',
+        body: {
+            toStringifyBody: null,
+            body: ''
+        },
+        headers: {},
+    });
+}
+
 type pathParts = ({
     type: 'literal';
     value: string;
@@ -120,6 +136,7 @@ type lrHandlerCallback<method extends httpMethod, path extends `/${string}`, par
 
 type handlerMatchReturn<
     methods extends '*' | httpMethod[],
+    pathPrefix extends string,
     path extends string,
     validations extends generalValidations<pathDefinitionToParams<path>>,
     callback extends lrHandlerCallback<
@@ -132,11 +149,11 @@ type handlerMatchReturn<
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
-    matchRequest<methods, path, testMethod, testPath> extends true ? {
+    matchRequest<methods, `${pathPrefix}${path}`, testMethod, testPath> extends true ? {
         matches: true;
         handler: LrHandler<methods, path, validations, callback>;
     } :
-    matchRequest<methods, path, testMethod, testPath> extends false ? {
+    matchRequest<methods, `${pathPrefix}${path}`, testMethod, testPath> extends false ? {
         matches: false;
     } :
     never;
@@ -176,10 +193,10 @@ class LrHandler<
     }
 
     match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
-        handlerMatchReturn<methods, path, validations, callback, testMethod, testPath> {
+        handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath> {
         const methodMatches = this.methods === '*' || this.methods.includes(method);
 
-        if (!methodMatches) return { matches: false } as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+        if (!methodMatches) return { matches: false } as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
 
         if (!path.startsWith('/')) {
             throw new Error(`Request path must start with /, got ${path}`);
@@ -187,7 +204,7 @@ class LrHandler<
 
         const reqPathSplit = path.slice(1).split('/');
 
-        if (reqPathSplit.length < this.pathParts.length) return { matches: false } as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+        if (reqPathSplit.length < this.pathParts.length) return { matches: false } as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
 
         let hasRest = false;
 
@@ -197,7 +214,7 @@ class LrHandler<
             const pathPart = this.pathParts[i]!;
             const reqPart = reqPathSplit[i];
 
-            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return { matches: false } as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return { matches: false } as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
             if (pathPart.type === 'param') continue;
             if (pathPart.type === 'rest') {
                 hasRest = true;
@@ -207,16 +224,16 @@ class LrHandler<
 
         if (reqPathSplit.length > this.pathParts.length) {
             if (hasRest) {
-                return { matches: true, handler: this } as unknown as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+                return { matches: true, handler: this } as unknown as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
             } else {
-                return { matches: false } as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+                return { matches: false } as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
             }
         }
 
         return {
             matches: true,
             handler: this,
-        } as unknown as handlerMatchReturn<methods, path, validations, callback, testMethod, testPath>;
+        } as unknown as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
     }
 };
 
@@ -235,6 +252,68 @@ export function lrHandler<
     return new LrHandler(methods, path, validations, callback);
 }
 
+type routerMatchReturnInternal<
+    pathPrefix extends '' | `/${string}`,
+    handlers extends any[],
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    handlers extends [infer firstHandler, ...infer restHandlers]
+    ? (
+        firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
+        ? (
+            handlerMatchReturn<
+                firstHandlerMethods,
+                pathPrefix,
+                firstHandlerPath,
+                firstHandlerValidations,
+                firstHandlerCallback,
+                testMethod,
+                testPath
+            >['matches'] extends true
+            ? (
+                [
+                    {
+                        type: 'handler';
+                        handler: LrHandler<firstHandlerMethods, firstHandlerPath, firstHandlerValidations, firstHandlerCallback>;
+                    },
+                    ...routerMatchReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                ]
+            ) : (
+                routerMatchReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+            )
+        ) : (
+            firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
+            ? (
+                routerMatchReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends [...infer firstElements, infer lastElement]
+                ? (
+                    [
+                        {
+                            type: 'router';
+                            router: LrRouter<firstHandlerPathPrefix, firstHandlerHandlers>;
+                            matches: [...firstElements, lastElement];
+                        },
+                        ...routerMatchReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                    ]
+                )
+                // empty return, so router has no matches
+                : [...routerMatchReturnInternal<pathPrefix, restHandlers, testMethod, testPath>]
+            ) : never
+        )
+    ) : []; // handlers is empty array
+
+type routerMatchReturn<
+    pathPrefix extends '' | `/${string}`,
+    handlers extends any[],
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    {
+        type: 'router';
+        router: LrRouter<pathPrefix, handlers>;
+        matches: routerMatchReturnInternal<pathPrefix, handlers, testMethod, testPath>;
+    };
+
 // todo: think if there is a better type for handlers
 // handlers can't be typed more specific here
 class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
@@ -246,28 +325,37 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
         this.handlers = handlers;
     }
 
-    match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath): 'todo' {
-        // todo: this function should return all handlers that match, because a handler could call lrNext
+    match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
+        routerMatchReturn<pathPrefix, handlers, testMethod, testPath> {
 
-        // for (const handler of this.handlers) {
-        //     const result = handler.match(method, `${this.pathPrefix}${path}`);
+        let matches = [];
 
-        //     if (result.matches) {
-        //         return result;
-        //     }
-        // }
+        for (const handler of this.handlers) {
+            if (handler instanceof LrHandler) {
+                const match = handler.match(method, (this.pathPrefix + path) as `/${string}`);
+                if (match.matches) {
+                    matches.push({
+                        type: 'handler',
+                        handler
+                    });
+                }
+            } else if (handler instanceof LrRouter) {
+                const match = handler.match(method, (this.pathPrefix + path) as `/${string}`);
+                if (match.matches) {
+                    matches.push({
+                        type: 'router',
+                        router: handler,
+                        matches: match.matches
+                    });
+                }
+            }
+        }
 
-        // return {
-        //     matches: false,
-        // };
-    }
-};
-
-class LrApp {
-    router: LrRouter;
-
-    constructor(router: LrRouter) {
-        this.router = router;
+        return {
+            type: 'router',
+            router: this,
+            matches: matches as routerMatchReturnInternal<pathPrefix, handlers, testMethod, testPath>
+        };
     }
 };
 
@@ -275,19 +363,16 @@ export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends 
     return new LrRouter(pathPrefix, handlers);
 }
 
-export function lrApp(router: LrRouter): LrApp {
+// todo: type handlers better
+class LrApp<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
+    router: LrRouter<pathPrefix, handlers>;
+
+    constructor(router: LrRouter<pathPrefix, handlers>) {
+        this.router = router;
+    }
+};
+
+// todo: type handlers better
+export function lrApp<pathPrefix extends '' | `/${string}`, handlers extends any[]>(router: LrRouter<pathPrefix, handlers>): LrApp<pathPrefix, handlers> {
     return new LrApp(router);
-}
-
-export function lrNext() {
-    return nextSymbol;
-}
-
-export function lrResponse() {
-    return new LrResponse({
-        status: 200,
-        contentType: 'text/html',
-        body: '',
-        headers: {},
-    });
 }

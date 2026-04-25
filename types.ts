@@ -42,10 +42,15 @@ type matchMethods<definitionMethods extends '*' | httpMethod[], testMethod exten
     : testMethod extends definitionMethods[number] ? true
     : false;
 
-export type matchRequest<definitionMethods extends '*' | httpMethod[], definitionPath extends string, testMethod extends httpMethod, testPath extends `/${string}`> =
-    matchMethods<definitionMethods, testMethod> extends true
+export type matchRequest<
+    methods extends '*' | httpMethod[],
+    path extends string,
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    matchMethods<methods, testMethod> extends true
     ? (
-        matchPaths<definitionPath, testPath> extends true
+        matchPaths<path, testPath> extends true
         ? true
         : false
     ) : false;
