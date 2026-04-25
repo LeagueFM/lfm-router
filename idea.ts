@@ -31,7 +31,7 @@ const router = lrRouter('', [
     handler2,
 ] as const);
 
-const a = router.match('GET', '/');
+// const a = router.match('GET', '/');
 
 // const app = lrApp(router);
 

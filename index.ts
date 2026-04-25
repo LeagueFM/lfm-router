@@ -227,7 +227,7 @@ export function lrHandler<
 
 type routerMatchReturnInternal<
     pathPrefix extends '' | `/${string}`,
-    handlers extends any[],
+    handlers extends any[], // can't be typed better here
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -269,7 +269,7 @@ type routerMatchReturnInternal<
 
 type routerMatchReturn<
     pathPrefix extends '' | `/${string}`,
-    handlers extends any[],
+    handlers extends generalHandler[],
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -279,9 +279,9 @@ type routerMatchReturn<
         matches: routerMatchReturnInternal<pathPrefix, handlers, testMethod, testPath>;
     };
 
-// todo: think if there is a better type for handlers
-// handlers can't be typed more specific here
-class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
+type generalHandler = LrHandler<any, any, any, any> | LrRouter<any, any>;
+
+class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]> {
     pathPrefix: pathPrefix;
     handlers: handlers;
 
@@ -324,13 +324,11 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
     }
 };
 
-// todo: type handlers better
-export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
+export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
     return new LrRouter(pathPrefix, handlers);
 }
 
-// todo: type handlers better
-class LrApp<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
+class LrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]> {
     router: LrRouter<pathPrefix, handlers>;
 
     constructor(router: LrRouter<pathPrefix, handlers>) {
@@ -338,7 +336,6 @@ class LrApp<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
     }
 };
 
-// todo: type handlers better
-export function lrApp<pathPrefix extends '' | `/${string}`, handlers extends any[]>(router: LrRouter<pathPrefix, handlers>): LrApp<pathPrefix, handlers> {
+export function lrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(router: LrRouter<pathPrefix, handlers>): LrApp<pathPrefix, handlers> {
     return new LrApp(router);
 }
