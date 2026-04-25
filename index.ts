@@ -359,7 +359,8 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
     }
 };
 
-export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
+// todo: type handlers better
+export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
     return new LrRouter(pathPrefix, handlers);
 }
 
