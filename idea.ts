@@ -9,6 +9,9 @@ const handler1 = lrHandler('*', '/foo/*', {
     }),
     query: z.object({
         hi: z.string(),
+    }),
+    params: z.object({
+        '*': z.string().transform(a => parseInt(a)),
     })
 }, async req => {
     req.method;

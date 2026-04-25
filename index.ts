@@ -24,8 +24,8 @@ type lrResponseResponse = {
 type lrRequest<
     method extends httpMethod,
     path extends `/${string}`,
-    params extends Record<string, string>,
-    query extends Record<string, string>,
+    params extends Record<string, any>, // any, because it can be transformed with zod
+    query extends Record<string, any>, // any, because it can be transformed with zod
     body extends any
 > = {
     method: method;
@@ -133,7 +133,13 @@ function pathToParts(path: string): pathParts {
 
 type lrHandlerReturn = LrResponse<lrResponseResponse> | typeof lrNext;
 
-type lrHandlerCallback<method extends httpMethod, path extends `/${string}`, params extends Record<string, string>, query extends Record<string, string>, body extends any> =
+type lrHandlerCallback<
+    method extends httpMethod,
+    path extends `/${string}`,
+    params extends Record<string, any>, // any, because it can be transformed with zod
+    query extends Record<string, any>, // any, because it can be transformed with zod
+    body extends any
+> =
     (req: lrRequest<method, path, params, query, body>)
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
