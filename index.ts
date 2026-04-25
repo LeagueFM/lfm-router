@@ -232,16 +232,18 @@ class LrHandler<
         return true as matchRequest<methods, path, testMethod, testPath>;
     }
 
-    execute<
+    async execute<
         testMethod extends httpMethod,
         testPath extends `/${string}`,
         params extends pathDefinitionToParams<path>,
         query extends Record<string, string>,
         body extends any
-    >(req: lrGeneralRequest<testMethod, testPath, params, query, body>) {
+    >(req: lrGeneralRequest<testMethod, testPath, params, query, body>):
+        Promise<Awaited<ReturnType<callback>>> {
         if (this.validations.params) {
             const result = this.validations.params.safeParse(req.params);
 
+            // todo: what do we do with errors?
             // todo
         }
     }
