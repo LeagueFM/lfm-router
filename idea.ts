@@ -1,7 +1,7 @@
 import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
 import { z } from 'zod';
 
-const handler1 = lrHandler('*', '/:name/:id/foo/*', {
+const handler1 = lrHandler('*', '/foo/*', {
     body: z.object({
         name: z.string(),
     }),
@@ -26,10 +26,13 @@ const handler2 = lrHandler('*', '/', {}, async req => {
     return lrResponse().status(500).json({ success: false });
 });
 
-const router = lrRouter('/hi', [
+const router = lrRouter('', [
     handler1,
-]);
+    handler2,
+] as const);
 
-const app = lrApp(router);
+const a = router.match('GET', '/');
 
-const server = app.createServer();
+// const app = lrApp(router);
+
+// const server = app.createServer();

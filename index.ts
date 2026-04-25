@@ -134,30 +134,6 @@ type lrHandlerCallback<method extends httpMethod, path extends `/${string}`, par
     (req: lrRequest<method, path, params, query, body>)
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
-type handlerMatchReturn<
-    methods extends '*' | httpMethod[],
-    pathPrefix extends string,
-    path extends string,
-    validations extends generalValidations<pathDefinitionToParams<path>>,
-    callback extends lrHandlerCallback<
-        methodsDefinitionToMethods<methods>,
-        pathDefinitionToType<path>,
-        validations extends { params: any } ? z.output<validations['params']> : pathDefinitionToParams<path>,
-        validations extends { query: any } ? z.output<validations['query']> : Record<string, string>,
-        validations extends { body: any } ? z.output<validations['body']> : unknown
-    >,
-    testMethod extends httpMethod,
-    testPath extends `/${string}`
-> =
-    matchRequest<methods, `${pathPrefix}${path}`, testMethod, testPath> extends true ? {
-        matches: true;
-        handler: LrHandler<methods, path, validations, callback>;
-    } :
-    matchRequest<methods, `${pathPrefix}${path}`, testMethod, testPath> extends false ? {
-        matches: false;
-    } :
-    never;
-
 type generalValidations<params extends object> = {
     body?: z.ZodType;
     query?: z.ZodType<unknown, Record<string, string>>;
@@ -193,10 +169,10 @@ class LrHandler<
     }
 
     match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
-        handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath> {
+        matchRequest<methods, path, testMethod, testPath> {
         const methodMatches = this.methods === '*' || this.methods.includes(method);
 
-        if (!methodMatches) return { matches: false } as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
+        if (!methodMatches) return false as matchRequest<methods, path, testMethod, testPath>;
 
         if (!path.startsWith('/')) {
             throw new Error(`Request path must start with /, got ${path}`);
@@ -204,7 +180,7 @@ class LrHandler<
 
         const reqPathSplit = path.slice(1).split('/');
 
-        if (reqPathSplit.length < this.pathParts.length) return { matches: false } as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
+        if (reqPathSplit.length < this.pathParts.length) return false as matchRequest<methods, path, testMethod, testPath>;
 
         let hasRest = false;
 
@@ -214,7 +190,7 @@ class LrHandler<
             const pathPart = this.pathParts[i]!;
             const reqPart = reqPathSplit[i];
 
-            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return { matches: false } as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
+            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return false as matchRequest<methods, path, testMethod, testPath>;
             if (pathPart.type === 'param') continue;
             if (pathPart.type === 'rest') {
                 hasRest = true;
@@ -224,16 +200,13 @@ class LrHandler<
 
         if (reqPathSplit.length > this.pathParts.length) {
             if (hasRest) {
-                return { matches: true, handler: this } as unknown as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
+                return true as matchRequest<methods, path, testMethod, testPath>;
             } else {
-                return { matches: false } as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
+                return false as matchRequest<methods, path, testMethod, testPath>;
             }
         }
 
-        return {
-            matches: true,
-            handler: this,
-        } as unknown as handlerMatchReturn<methods, '', path, validations, callback, testMethod, testPath>;
+        return true as matchRequest<methods, path, testMethod, testPath>;
     }
 };
 
@@ -262,15 +235,7 @@ type routerMatchReturnInternal<
     ? (
         firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
         ? (
-            handlerMatchReturn<
-                firstHandlerMethods,
-                pathPrefix,
-                firstHandlerPath,
-                firstHandlerValidations,
-                firstHandlerCallback,
-                testMethod,
-                testPath
-            >['matches'] extends true
+            matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
             ? (
                 [
                     {
@@ -333,7 +298,7 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[]> {
         for (const handler of this.handlers) {
             if (handler instanceof LrHandler) {
                 const match = handler.match(method, (this.pathPrefix + path) as `/${string}`);
-                if (match.matches) {
+                if (match) {
                     matches.push({
                         type: 'handler',
                         handler
