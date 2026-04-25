@@ -170,12 +170,20 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
             ? (
                 (typeof nextSymbol) extends ReturnType<firstHandlerCallback> ? (
                     [
-                        LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>,
+                        {
+                            type: 'handler';
+                            handler: LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>;
+                        },
                         ...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
                     ]
                 ) :
                 (
-                    [LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>]
+                    [
+                        {
+                            type: 'handler';
+                            handler: LrHandler<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, firstHandlerCallback>;
+                        }
+                    ]
                 )
             ) : (
                 routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>
@@ -183,19 +191,30 @@ type routerMatchReturn<pathPrefix extends '' | `/${string}`, handlers extends an
         ) : (
             firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
             ? (
-                routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, [...firstHandlerHandlers, ...restHandlers], testMethod, testPath>
+                routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends []
+                ? [...routerMatchReturn<pathPrefix, restHandlers, testMethod, testPath>]
+                : [
+                    {
+                        type: 'router';
+                        router: LrRouter<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers>;
+                        matches: routerMatchReturn<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>;
+                    }
+                    // todo: rest handlers (if last match of router can call next)
+                ]
             ) : never
         )
-    ) : [];
-
-type b = (typeof nextSymbol) extends ReturnType<lrHandlerCallback> ? true : false;
+    ) : []; // handlers is empty array
 
 type a = routerMatchReturn<'', [
-    LrHandler<['GET'], '/foo/*', () => LrResponse<lrResponseResponse>>,
+    LrHandler<['GET'], '/foo/*', lrHandlerCallback>,
+    LrRouter<'/foo', [
+        LrHandler<['GET'], '/:param', lrHandlerCallback>,
+    ]>,
     LrHandler<['GET'], '/:param', lrHandlerCallback>,
-], 'GET', '/foo'>;
+], 'GET', '/foo/hi'>;
 
-class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[] = generalHandler[]> {
+// handlers can't be typed more specific here
+class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends any[] = generalHandler[]> {
     pathPrefix: pathPrefix;
     handlers: handlers;
 
