@@ -3,11 +3,8 @@ import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToPa
 // todo: only type import and dev dep
 import { z } from 'zod';
 
-const nextSymbol = Symbol('lrNext') as unknown as { __lrNext: true };
-
-export function lrNext() {
-    return nextSymbol;
-}
+// typescript sometimes converts the Symbol('lrNext') to symbol, so we just convert it to a special object
+export const lrNext = Symbol('lrNext') as unknown as { __lrNext: symbol };
 
 type responseBody = {
     toStringifyBody: any;
@@ -128,7 +125,7 @@ function pathToParts(path: string): pathParts {
     return parts;
 }
 
-type lrHandlerReturn = LrResponse<lrResponseResponse> | typeof nextSymbol;
+type lrHandlerReturn = LrResponse<lrResponseResponse> | typeof lrNext;
 
 type lrHandlerCallback<method extends httpMethod, path extends `/${string}`, params extends Record<string, string>, query extends Record<string, string>, body extends any> =
     (req: lrRequest<method, path, params, query, body>)
@@ -330,7 +327,7 @@ type canRouterCallNext<handlers extends any[]> =
     ? (
         lastHandler extends LrHandler<infer lastHandlerMethods, infer lastHandlerPath, infer lastHandlerValidations, infer lastHandlerCallback>
         ? (
-            (typeof nextSymbol) extends ReturnType<lastHandlerCallback> ? true : false
+            (typeof lrNext) extends ReturnType<lastHandlerCallback> ? true : false
         ) : (
             lastHandler extends LrRouter<infer lastHandlerPathPrefix, infer lastHandlerHandlers>
             ? (
@@ -351,12 +348,12 @@ type routerReturnInternal<
         ? (
             matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
             ? (
-                (typeof nextSymbol) extends ReturnType<firstHandlerCallback> ? (
-                    Exclude<ReturnType<firstHandlerCallback>, typeof nextSymbol | Promise<typeof nextSymbol>> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
-                ) : (Promise<typeof nextSymbol>) extends ReturnType<firstHandlerCallback> ? (
-                    Exclude<ReturnType<firstHandlerCallback>, typeof nextSymbol | Promise<typeof nextSymbol>> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                (typeof lrNext) extends ReturnType<firstHandlerCallback> ? (
+                    Exclude<ReturnType<firstHandlerCallback>, typeof lrNext | Promise<typeof lrNext>> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                ) : (Promise<typeof lrNext>) extends ReturnType<firstHandlerCallback> ? (
+                    Exclude<ReturnType<firstHandlerCallback>, typeof lrNext | Promise<typeof lrNext>> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
                 ) : (
-                    Exclude<ReturnType<firstHandlerCallback>, typeof nextSymbol | Promise<typeof nextSymbol>>
+                    Exclude<ReturnType<firstHandlerCallback>, typeof lrNext | Promise<typeof lrNext>>
                 )
             )
             : routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>

@@ -16,7 +16,7 @@ const handler1 = lrHandler('*', '/foo/*', {
     req.body;
     req.query;
 
-    return lrNext();
+    return lrNext;
 });
 
 const handler2 = lrHandler('*', '/*', {}, async req => {
