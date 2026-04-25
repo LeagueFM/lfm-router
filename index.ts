@@ -152,9 +152,9 @@ class LrHandler<methods extends '*' | httpMethod[], path extends `/${string}`, c
     }
 };
 
-type generalHandlers = LrHandler<'*', `/${string}`, lrHandlerCallback> | LrRouter;
+type generalHandler = LrHandler<'*', `/${string}`, lrHandlerCallback> | LrRouter;
 
-class LrRouter<handlers extends generalHandlers = generalHandlers> {
+class LrRouter<handlers extends generalHandler[] = generalHandler[]> {
     handlers: handlers;
 
     constructor(handlers: handlers) {
