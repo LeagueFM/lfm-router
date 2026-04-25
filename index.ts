@@ -21,11 +21,25 @@ type lrResponseResponse = {
     headers: Record<string, string>;
 };
 
-type lrRequest<
+type lrHandlerRequest<
     method extends httpMethod,
     path extends `/${string}`,
     params extends Record<string, any>, // any, because it can be transformed with zod
     query extends Record<string, any>, // any, because it can be transformed with zod
+    body extends any
+> = {
+    method: method;
+    path: path;
+    params: params;
+    query: query;
+    body: body;
+};
+
+type lrGeneralRequest<
+    method extends httpMethod,
+    path extends `/${string}`,
+    params extends Record<string, string>,
+    query extends Record<string, string>,
     body extends any
 > = {
     method: method;
@@ -140,7 +154,7 @@ type lrHandlerCallback<
     query extends Record<string, any>, // any, because it can be transformed with zod
     body extends any
 > =
-    (req: lrRequest<method, path, params, query, body>)
+    (req: lrHandlerRequest<method, path, params, query, body>)
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
 type generalValidations<params extends object> = {
@@ -216,6 +230,20 @@ class LrHandler<
         }
 
         return true as matchRequest<methods, path, testMethod, testPath>;
+    }
+
+    execute<
+        testMethod extends httpMethod,
+        testPath extends `/${string}`,
+        params extends pathDefinitionToParams<path>,
+        query extends Record<string, string>,
+        body extends any
+    >(req: lrGeneralRequest<testMethod, testPath, params, query, body>) {
+        if (this.validations.params) {
+            const result = this.validations.params.safeParse(req.params);
+
+            // todo
+        }
     }
 };
 
