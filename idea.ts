@@ -23,7 +23,13 @@ const handler1 = lrHandler('*', '/foo/*', {
     params: z.object({
         '*': z.string().transform(a => parseInt(a)),
     }),
-    failResponse: async ({ bodyError, queryError, paramsError }) => {
+    failResponse: async (req, { bodyError, queryError, paramsError }) => {
+        req.method;
+        req.path;
+        req.params;
+        req.body;
+        req.query;
+
         if (bodyError) {
             // return lrNext;
         }

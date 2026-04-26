@@ -20,12 +20,12 @@ type lrResponseResponse = {
     headers: Record<string, string>;
 };
 
-type lrHandlerRequest<
+type afterParseRequest<
     method extends httpMethod,
     path extends `/${string}`,
     params extends Record<string, any>, // any, because it can be transformed with zod
     query extends Record<string, any>, // any, because it can be transformed with zod
-    body extends any
+    body
 > = {
     method: method;
     path: path;
@@ -34,19 +34,17 @@ type lrHandlerRequest<
     body: body;
 };
 
-// type lrGeneralRequest<
-//     method extends httpMethod,
-//     path extends `/${string}`,
-//     params extends Record<string, string>,
-//     query extends Record<string, string>,
-//     body extends any
-// > = {
-//     method: method;
-//     path: path;
-//     params: params;
-//     query: query;
-//     body: body;
-// };
+type lrRequest<
+    method extends httpMethod,
+    path extends `/${string}`,
+    params extends Record<string, string> // string, because this is before zod parsing
+> = {
+    method: method;
+    path: path;
+    params: params;
+    query: Record<string, string>; // not generic, because this is before zod parsing
+    body: unknown; // not generic, because this is before zod parsing
+};
 
 class LrResponse<response extends lrResponseResponse> {
     response: response;
@@ -176,24 +174,30 @@ type lrHandlerCallback<
     query extends Record<string, any>, // any, because it can be transformed with zod
     body extends any
 > =
-    (req: lrHandlerRequest<method, path, params, query, body>)
+    (req: afterParseRequest<method, path, params, query, body>)
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
-type generalValidations<params extends object> = null | {
+type generalValidations<
+    methods extends '*' | httpMethod[],
+    path extends string,
+> = null | {
     body?: z.ZodType;
     query?: z.ZodType<unknown, Record<string, string>>;
-    params?: z.ZodType<unknown, params>;
-    failResponse: (errors: {
-        bodyError: z.ZodError | null;
-        queryError: z.ZodError | null;
-        paramsError: z.ZodError | null;
-    }) => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
+    params?: z.ZodType<unknown, pathDefinitionToParams<path>>;
+    failResponse: (
+        req: lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>, pathDefinitionToParams<path>>,
+        errors: {
+            bodyError: z.ZodError | null;
+            queryError: z.ZodError | null;
+            paramsError: z.ZodError | null;
+        }
+    ) => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
 };
 
 class LrHandler<
     methods extends '*' | httpMethod[],
     path extends string,
-    validations extends generalValidations<pathDefinitionToParams<path>>,
+    validations extends generalValidations<methods, path>,
     callback extends lrHandlerCallback<
         methodsDefinitionToMethods<methods>,
         pathDefinitionToType<path>,
@@ -263,7 +267,7 @@ class LrHandler<
 export function lrHandler<
     methods extends '*' | httpMethod[],
     path extends `/${string}`,
-    validations extends generalValidations<pathDefinitionToParams<path>>,
+    validations extends generalValidations<methods, path>,
     callback extends lrHandlerCallback<
         methodsDefinitionToMethods<methods>,
         pathDefinitionToType<path>,
@@ -442,7 +446,7 @@ export type lrRouterReturn<
     ) : never;
 
 type validationsToRequirements<
-    validations extends generalValidations<any>
+    validations extends any // can't be typed better here
 > =
     (validations extends { body: z.ZodType } ? { body: z.input<validations['body']> } : unknown)
     & (validations extends { query: z.ZodType } ? { query: z.input<validations['query']> } : unknown);
