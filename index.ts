@@ -53,7 +53,7 @@ class LrResponse<response extends lrResponseResponse> {
         this.response = response;
     }
 
-    status<status extends number>(status: status): LrResponse<simplify<Omit<response, 'status'> & { status: status }>> {
+    status<status extends number>(status: status): LrResponse<simplify<{ status: status } & Omit<response, 'status'>>> {
         return new LrResponse({
             ...this.response,
             status
