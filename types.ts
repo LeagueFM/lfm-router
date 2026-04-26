@@ -1,5 +1,10 @@
 export type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
 
+export type simplify<T> =
+    T extends object
+    ? { [K in keyof T]: simplify<T[K]> }
+    : T;
+
 type partMatchPaths<definitionPart extends string, testPart extends string> =
     definitionPart extends `:${string}` ? true
     : definitionPart extends testPart ? true

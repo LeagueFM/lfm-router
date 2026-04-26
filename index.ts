@@ -1,4 +1,4 @@
-import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods } from "./types";
+import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods, simplify } from "./types";
 // import type { z } from 'zod';
 // todo: only type import and dev dep
 import { z } from 'zod';
@@ -426,15 +426,11 @@ export type lrRouterReturn<
         routerReturnInternal<pathPrefix, handlers, testMethod, testPath>
     ) : never;
 
-type or<a, b> = a extends true ? true : b;
-
 type validationsToRequirements<
     validations extends generalValidations<any>
 > =
-    {
-        body: validations extends { body: z.ZodType } ? z.input<validations['body']> : any;
-        query: validations extends { query: z.ZodType } ? z.input<validations['query']> : any;
-    };
+    (validations extends { body: z.ZodType } ? { body: z.input<validations['body']> } : unknown)
+    & (validations extends { query: z.ZodType } ? { query: z.input<validations['query']> } : unknown);
 
 type routerRequirementsInternal<
     pathPrefix extends '' | `/${string}`,
@@ -481,7 +477,7 @@ export type lrRouterRequirements<
 > =
     router extends LrRouter<infer pathPrefix, infer handlers>
     ? (
-        routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>
+        simplify<routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>>
     ) : never;
 
 export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
