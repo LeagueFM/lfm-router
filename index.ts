@@ -95,7 +95,7 @@ export function lrResponse() {
             body: ''
         },
         headers: {},
-    });
+    } as const);
 }
 
 type pathParts = ({
