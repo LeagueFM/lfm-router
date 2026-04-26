@@ -4,7 +4,7 @@ import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToPa
 import { z } from 'zod';
 
 // typescript sometimes converts the Symbol('lrNext') to symbol, so we just convert it to a special object
-export const lrNext = Symbol('lrNext') as unknown as { __lrNext: symbol };
+export const lrNext = Symbol('lrNext') as unknown as 'lrNext' & { __lrNext: symbol };
 
 type responseBody = {
     toStringifyBody: any;
