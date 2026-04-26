@@ -34,19 +34,19 @@ type lrHandlerRequest<
     body: body;
 };
 
-type lrGeneralRequest<
-    method extends httpMethod,
-    path extends `/${string}`,
-    params extends Record<string, string>,
-    query extends Record<string, string>,
-    body extends any
-> = {
-    method: method;
-    path: path;
-    params: params;
-    query: query;
-    body: body;
-};
+// type lrGeneralRequest<
+//     method extends httpMethod,
+//     path extends `/${string}`,
+//     params extends Record<string, string>,
+//     query extends Record<string, string>,
+//     body extends any
+// > = {
+//     method: method;
+//     path: path;
+//     params: params;
+//     query: query;
+//     body: body;
+// };
 
 class LrResponse<response extends lrResponseResponse> {
     response: response;
@@ -319,7 +319,7 @@ type routerMatchReturnInternal<
 
 type routerMatchReturn<
     pathPrefix extends '' | `/${string}`,
-    handlers extends generalHandler[],
+    handlers extends generalHandlerOrRouter[],
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -329,9 +329,9 @@ type routerMatchReturn<
         matches: routerMatchReturnInternal<pathPrefix, handlers, testMethod, testPath>;
     };
 
-type generalHandler = LrHandler<any, any, any, any> | LrRouter<any, any>;
+type generalHandlerOrRouter = LrHandler<any, any, any, any> | LrRouter<any, any>;
 
-class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]> {
+class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandlerOrRouter[]> {
     pathPrefix: pathPrefix;
     handlers: handlers;
 
@@ -374,8 +374,7 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
     }
 };
 
-// handlers can't be typed more specific here
-type canRouterCallNext<handlers extends any[]> =
+type canRouterCallNext<handlers extends generalHandlerOrRouter[]> =
     handlers extends [...infer firstHandlers, infer lastHandler]
     ? (
         lastHandler extends LrHandler<infer lastHandlerMethods, infer lastHandlerPath, infer lastHandlerValidations, infer lastHandlerCallback>
@@ -401,22 +400,23 @@ type routerReturnInternal<
         ? (
             matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
             ? (
-                (typeof lrNext) extends Awaited<ReturnType<firstHandlerCallback>> ? (
-                    Exclude<Awaited<ReturnType<firstHandlerCallback>>, typeof lrNext> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
-                ) : (
-                    Exclude<Awaited<ReturnType<firstHandlerCallback>>, typeof lrNext>
+                Exclude<Awaited<ReturnType<firstHandlerCallback>>, typeof lrNext>
+                | (
+                    (typeof lrNext) extends Awaited<ReturnType<firstHandlerCallback>> ? (
+                        routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                    ) : never
                 )
             )
             : routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
         ) : (
             firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
             ? (
-                canRouterCallNext<firstHandlerHandlers> extends true
-                ? (
-                    routerReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
-                    | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
-                ) : (
-                    routerReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
+                routerReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
+                | (
+                    canRouterCallNext<firstHandlerHandlers> extends true
+                    ? (
+                        routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                    ) : never
                 )
             ) : never
         )
@@ -426,7 +426,7 @@ type routerReturnInternal<
     );
 
 export type lrRouterReturn<
-    router extends LrRouter<'' | `/${string}`, generalHandler[]>,
+    router extends LrRouter<'' | `/${string}`, generalHandlerOrRouter[]>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -453,23 +453,22 @@ type routerRequirementsInternal<
         ? (
             matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
             ? (
-                (typeof lrNext) extends ReturnType<firstHandlerCallback> ? (
-                    validationsToRequirements<firstHandlerValidations> & routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
-                ) : (Promise<typeof lrNext>) extends ReturnType<firstHandlerCallback> ? (
-                    validationsToRequirements<firstHandlerValidations> & routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
-                ) : (
-                    validationsToRequirements<firstHandlerValidations>
+                validationsToRequirements<firstHandlerValidations>
+                & (
+                    (typeof lrNext) extends Awaited<ReturnType<firstHandlerCallback>> ? (
+                        routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
+                    ) : unknown
                 )
             ) : routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
         ) : (
             firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
             ? (
-                canRouterCallNext<firstHandlerHandlers> extends true
-                ? (
-                    routerRequirementsInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
-                    & routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
-                ) : (
-                    routerRequirementsInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
+                routerRequirementsInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
+                & (
+                    canRouterCallNext<firstHandlerHandlers> extends true
+                    ? (
+                        routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
+                    ) : unknown
                 )
             ) : never
         )
@@ -480,7 +479,7 @@ type routerRequirementsInternal<
     ;
 
 export type lrRouterRequirements<
-    router extends LrRouter<'' | `/${string}`, generalHandler[]>,
+    router extends LrRouter<'' | `/${string}`, generalHandlerOrRouter[]>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -489,11 +488,11 @@ export type lrRouterRequirements<
         recursiveSimplify<routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>>
     ) : never;
 
-export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
+export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandlerOrRouter[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
     return new LrRouter(pathPrefix, handlers);
 }
 
-class LrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]> {
+class LrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandlerOrRouter[]> {
     router: LrRouter<pathPrefix, handlers>;
 
     constructor(router: LrRouter<pathPrefix, handlers>) {
@@ -501,6 +500,6 @@ class LrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandle
     }
 };
 
-export function lrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(router: LrRouter<pathPrefix, handlers>): LrApp<pathPrefix, handlers> {
+export function lrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandlerOrRouter[]>(router: LrRouter<pathPrefix, handlers>): LrApp<pathPrefix, handlers> {
     return new LrApp(router);
 }
