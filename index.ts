@@ -412,12 +412,10 @@ type routerReturnInternal<
         ? (
             matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
             ? (
-                (typeof lrNext) extends ReturnType<firstHandlerCallback> ? (
-                    Exclude<ReturnType<firstHandlerCallback>, typeof lrNext | Promise<typeof lrNext>> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
-                ) : (Promise<typeof lrNext>) extends ReturnType<firstHandlerCallback> ? (
-                    Exclude<ReturnType<firstHandlerCallback>, typeof lrNext | Promise<typeof lrNext>> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
+                (typeof lrNext) extends Awaited<ReturnType<firstHandlerCallback>> ? (
+                    Exclude<Awaited<ReturnType<firstHandlerCallback>>, typeof lrNext> | routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
                 ) : (
-                    Exclude<ReturnType<firstHandlerCallback>, typeof lrNext | Promise<typeof lrNext>>
+                    Exclude<Awaited<ReturnType<firstHandlerCallback>>, typeof lrNext>
                 )
             )
             : routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
