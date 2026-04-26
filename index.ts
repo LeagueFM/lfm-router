@@ -475,7 +475,7 @@ type routerRequirementsInternal<
         )
     ) : (
         // no handlers
-        { body: any; query: Record<string, string> }
+        { body: unknown, query: unknown }
     )
     ;
 
