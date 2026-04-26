@@ -378,16 +378,30 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
     }
 };
 
-type canRouterCallNext<handlers extends generalHandlerOrRouter[]> =
-    handlers extends [...infer firstHandlers, infer lastHandler]
+type canRouterCallNext<
+    pathPrefix extends '' | `/${string}`,
+    handlers extends any[], // can't be typed better here
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    handlers extends [infer firstHandler, ...infer restHandlers]
     ? (
-        lastHandler extends LrHandler<infer lastHandlerMethods, infer lastHandlerPath, infer lastHandlerValidations, infer lastHandlerCallback>
+        firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
         ? (
-            (typeof lrNext) extends ReturnType<lastHandlerCallback> ? true : false
-        ) : (
-            lastHandler extends LrRouter<infer lastHandlerPathPrefix, infer lastHandlerHandlers>
+            matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
             ? (
-                canRouterCallNext<lastHandlerHandlers>
+                (typeof lrNext) extends Awaited<ReturnType<firstHandlerCallback>>
+                ? canRouterCallNext<pathPrefix, restHandlers, testMethod, testPath>
+                : false
+            ) : (
+                canRouterCallNext<pathPrefix, restHandlers, testMethod, testPath>
+            )
+        ) : (
+            firstHandler extends LrRouter<infer lastHandlerPathPrefix, infer lastHandlerHandlers>
+            ? (
+                canRouterCallNext<`${pathPrefix}${lastHandlerPathPrefix}`, lastHandlerHandlers, testMethod, testPath> extends true
+                ? canRouterCallNext<pathPrefix, restHandlers, testMethod, testPath>
+                : false
             ) : never // invalid lastHandler
         )
     ) : true; // empty handlers
@@ -423,7 +437,7 @@ type routerReturnInternal<
             ? (
                 routerReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
                 | (
-                    canRouterCallNext<firstHandlerHandlers> extends true
+                    canRouterCallNext<firstHandlerPathPrefix, firstHandlerHandlers, testMethod, testPath> extends true
                     ? (
                         routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
                     ) : never
@@ -475,7 +489,7 @@ type routerRequirementsInternal<
             ? (
                 routerRequirementsInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
                 & (
-                    canRouterCallNext<firstHandlerHandlers> extends true
+                    canRouterCallNext<firstHandlerPathPrefix, firstHandlerHandlers, testMethod, testPath> extends true
                     ? (
                         routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
                     ) : unknown
@@ -538,7 +552,7 @@ export type lrAppReturn<
     | Awaited<ReturnType<app['errorResponse']>>
     | typeof lastResortErrorResponse
     | (
-        canRouterCallNext<app['router']['handlers']> extends true
+        canRouterCallNext<app['router']['pathPrefix'], app['router']['handlers'], testMethod, testPath> extends true
         ? Awaited<ReturnType<app['noHandlerResponse']>>
         : never
     );
