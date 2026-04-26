@@ -2,16 +2,6 @@ import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
 import type { lrRouterReturn, lrRouterRequirements, lrAppReturn, lrAppRequirements } from ".";
 import { z } from 'zod';
 
-const a = z.object({
-    name: z.string(),
-    foo: z.number()
-});
-
-const b = await a.safeParseAsync({});
-if (!b.success) {
-    // 
-}
-
 const handler1 = lrHandler('*', '/foo/*', {
     body: z.object({
         name: z.string(),
@@ -44,7 +34,7 @@ const handler1 = lrHandler('*', '/foo/*', {
     req.query;
 
     if (Math.random() < 0.5) {
-        // return lrNext;
+        return lrNext;
     }
 
     return lrResponse().status(200).text('Hello world');
