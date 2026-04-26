@@ -502,14 +502,43 @@ export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends 
     return new LrRouter(pathPrefix, handlers);
 }
 
-class LrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandlerOrRouter[]> {
-    router: LrRouter<pathPrefix, handlers>;
+type errorResponseFunction =
+    (req: lrRequest<httpMethod, `/${string}`, Record<string, string>>, error: unknown)
+        => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
 
-    constructor(router: LrRouter<pathPrefix, handlers>) {
+class LrApp<
+    pathPrefix extends '' | `/${string}`,
+    handlers extends generalHandlerOrRouter[],
+    errorResponse extends errorResponseFunction
+> {
+    router: LrRouter<pathPrefix, handlers>;
+    errorResponse: errorResponse;
+
+    constructor(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse }) {
         this.router = router;
+        this.errorResponse = options.errorResponse;
     }
 };
 
-export function lrApp<pathPrefix extends '' | `/${string}`, handlers extends generalHandlerOrRouter[]>(router: LrRouter<pathPrefix, handlers>): LrApp<pathPrefix, handlers> {
-    return new LrApp(router);
+export type lrAppReturn<
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], errorResponseFunction>,
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    lrRouterReturn<app['router'], testMethod, testPath>
+    | Awaited<ReturnType<app['errorResponse']>>;
+
+export type lrAppRequirements<
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], errorResponseFunction>,
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    lrRouterRequirements<app['router'], testMethod, testPath>;
+
+export function lrApp<
+    pathPrefix extends '' | `/${string}`,
+    handlers extends generalHandlerOrRouter[],
+    errorResponse extends errorResponseFunction
+>(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse }): LrApp<pathPrefix, handlers, errorResponse> {
+    return new LrApp(router, options);
 }
