@@ -502,34 +502,49 @@ export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends 
     return new LrRouter(pathPrefix, handlers);
 }
 
+const lastResortErrorResponse = lrResponse().status(500);
+
 type errorResponseFunction =
     (req: lrRequest<httpMethod, `/${string}`, Record<string, string>>, error: unknown)
+        => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
+
+type noHandlerResponseFunction =
+    (req: lrRequest<httpMethod, `/${string}`, Record<string, string>>)
         => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
 
 class LrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
-    errorResponse extends errorResponseFunction
+    errorResponse extends errorResponseFunction,
+    noHandlerResponse extends noHandlerResponseFunction
 > {
     router: LrRouter<pathPrefix, handlers>;
     errorResponse: errorResponse;
+    noHandlerResponse: noHandlerResponse;
 
-    constructor(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse }) {
+    constructor(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse, noHandlerResponse: noHandlerResponse }) {
         this.router = router;
         this.errorResponse = options.errorResponse;
+        this.noHandlerResponse = options.noHandlerResponse;
     }
 };
 
 export type lrAppReturn<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], errorResponseFunction>,
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], errorResponseFunction, noHandlerResponseFunction>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
     lrRouterReturn<app['router'], testMethod, testPath>
-    | Awaited<ReturnType<app['errorResponse']>>;
+    | Awaited<ReturnType<app['errorResponse']>>
+    | typeof lastResortErrorResponse
+    | (
+        canRouterCallNext<app['router']['handlers']> extends true
+        ? Awaited<ReturnType<app['noHandlerResponse']>>
+        : never
+    );
 
 export type lrAppRequirements<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], errorResponseFunction>,
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], errorResponseFunction, noHandlerResponseFunction>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -538,7 +553,8 @@ export type lrAppRequirements<
 export function lrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
-    errorResponse extends errorResponseFunction
->(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse }): LrApp<pathPrefix, handlers, errorResponse> {
+    errorResponse extends errorResponseFunction,
+    noHandlerResponse extends noHandlerResponseFunction
+>(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse, noHandlerResponse: noHandlerResponse }): LrApp<pathPrefix, handlers, errorResponse, noHandlerResponse> {
     return new LrApp(router, options);
 }

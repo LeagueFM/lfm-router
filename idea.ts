@@ -44,7 +44,7 @@ const handler1 = lrHandler('*', '/foo/*', {
     req.query;
 
     if (Math.random() < 0.5) {
-        return lrNext;
+        // return lrNext;
     }
 
     return lrResponse().status(200).text('Hello world');
@@ -80,15 +80,15 @@ const app = lrApp(router, {
 
         return lrResponse().status(500).json({ success: false } as const);
     },
-    // noHandlerResponse: (req) => {
-    //     req.method;
-    //     req.path;
-    //     req.params;
-    //     req.body;
-    //     req.query;
+    noHandlerResponse: (req) => {
+        req.method;
+        req.path;
+        req.params;
+        req.body;
+        req.query;
 
-    //     return lrResponse().status(404).json({ success: false } as const);
-    // }
+        return lrResponse().status(404).json({ success: false } as const);
+    }
 });
 
 type a = lrAppReturn<typeof app, 'GET', '/foo/hi'>;
