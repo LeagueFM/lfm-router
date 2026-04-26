@@ -179,10 +179,15 @@ type lrHandlerCallback<
     (req: lrHandlerRequest<method, path, params, query, body>)
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
-type generalValidations<params extends object> = {
+type generalValidations<params extends object> = null | {
     body?: z.ZodType;
     query?: z.ZodType<unknown, Record<string, string>>;
     params?: z.ZodType<unknown, params>;
+    failResponse: (errors: {
+        bodyError: z.ZodError | null;
+        queryError: z.ZodError | null;
+        paramsError: z.ZodError | null;
+    }) => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
 };
 
 class LrHandler<
@@ -252,22 +257,6 @@ class LrHandler<
         }
 
         return true as matchRequest<methods, path, testMethod, testPath>;
-    }
-
-    async execute<
-        testMethod extends httpMethod,
-        testPath extends `/${string}`,
-        params extends pathDefinitionToParams<path>,
-        query extends Record<string, string>,
-        body extends any
-    >(req: lrGeneralRequest<testMethod, testPath, params, query, body>):
-        Promise<Awaited<ReturnType<callback>>> {
-        if (this.validations.params) {
-            const result = this.validations.params.safeParse(req.params);
-
-            // todo: what do we do with errors?
-            // todo
-        }
     }
 };
 
