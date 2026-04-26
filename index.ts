@@ -1,4 +1,4 @@
-import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods, simplify } from "./types";
+import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods, recursiveSimplify, simplify } from "./types";
 // import type { z } from 'zod';
 // todo: only type import and dev dep
 import { z } from 'zod';
@@ -56,14 +56,14 @@ class LrResponse<response extends lrResponseResponse> {
         this.response = response;
     }
 
-    status<status extends number>(status: status): LrResponse<Omit<response, 'status'> & { status: status }> {
+    status<status extends number>(status: status): LrResponse<simplify<Omit<response, 'status'> & { status: status }>> {
         return new LrResponse({
             ...this.response,
             status
-        });
+        } as unknown as simplify<Omit<response, 'status'> & { status: status }>);
     }
 
-    json<data>(data: data): LrResponse<Omit<response, 'contentType' | 'body'> & { contentType: 'application/json'; body: { toStringifyBody: data; body: null } }> {
+    json<data>(data: data): LrResponse<simplify<Omit<response, 'contentType' | 'body'> & { contentType: 'application/json'; body: { toStringifyBody: data; body: null } }>> {
         return new LrResponse({
             ...this.response,
             contentType: 'application/json',
@@ -71,10 +71,10 @@ class LrResponse<response extends lrResponseResponse> {
                 toStringifyBody: data,
                 body: null
             }
-        });
+        } as unknown as simplify<Omit<response, 'contentType' | 'body'> & { contentType: 'application/json'; body: { toStringifyBody: data; body: null } }>);
     }
 
-    text(text: string): LrResponse<Omit<response, 'contentType' | 'body'> & { contentType: 'text/html'; body: { toStringifyBody: null; body: string } }> {
+    text(text: string): LrResponse<simplify<Omit<response, 'contentType' | 'body'> & { contentType: 'text/html'; body: { toStringifyBody: null; body: string } }>> {
         return new LrResponse({
             ...this.response,
             contentType: 'text/html',
@@ -82,7 +82,7 @@ class LrResponse<response extends lrResponseResponse> {
                 toStringifyBody: null,
                 body: text
             }
-        });
+        } as unknown as simplify<Omit<response, 'contentType' | 'body'> & { contentType: 'text/html'; body: { toStringifyBody: null; body: string } }>);
     }
 }
 
@@ -477,7 +477,7 @@ export type lrRouterRequirements<
 > =
     router extends LrRouter<infer pathPrefix, infer handlers>
     ? (
-        simplify<routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>>
+        recursiveSimplify<routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>>
     ) : never;
 
 export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandler[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {

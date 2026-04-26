@@ -24,9 +24,9 @@ const handler1 = lrHandler('*', '/foo/*', {
 });
 
 const handler2 = lrHandler('*', '/*', {
-    // body: z.object({
-    //     foo: z.literal(2)
-    // })
+    body: z.object({
+        foo: z.string()
+    })
 }, async req => {
     // return lrNext();
     // return lrJson({ success: true });
@@ -40,7 +40,7 @@ const router = lrRouter('', [
     handler2,
 ] as const);
 
-type a = lrRouterRequirements<typeof router, 'GET', '/foo/hi'>;
+type a = lrRouterReturn<typeof router, 'GET', '/foo/hi'>;
 
 // todo: execute function
 

@@ -2,7 +2,12 @@ export type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS'
 
 export type simplify<T> =
     T extends object
-    ? { [K in keyof T]: simplify<T[K]> }
+    ? { [K in keyof T]: T[K] }
+    : T;
+
+export type recursiveSimplify<T> =
+    T extends object
+    ? { [K in keyof T]: recursiveSimplify<T[K]> }
     : T;
 
 type partMatchPaths<definitionPart extends string, testPart extends string> =
