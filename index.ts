@@ -390,7 +390,7 @@ type canRouterCallNext<handlers extends generalHandlerOrRouter[]> =
                 canRouterCallNext<lastHandlerHandlers>
             ) : never // invalid lastHandler
         )
-    ) : false;
+    ) : true; // empty handlers
 
 type routerReturnInternal<
     pathPrefix extends '' | `/${string}`,
