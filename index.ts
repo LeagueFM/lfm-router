@@ -16,7 +16,6 @@ type responseBody = {
 
 type lrResponseResponse = {
     status: number;
-    contentType: string;
     body: responseBody;
     headers: Record<string, string>;
 };
@@ -60,41 +59,64 @@ class LrResponse<response extends lrResponseResponse> {
         return new LrResponse({
             ...this.response,
             status
-        } as unknown as simplify<Omit<response, 'status'> & { status: status }>);
+        } as any);
     }
 
-    json<data>(data: data): LrResponse<simplify<Omit<response, 'contentType' | 'body'> & { contentType: 'application/json'; body: { toStringifyBody: data; body: null } }>> {
+    json<data>(data: data):
+        LrResponse<
+            simplify<
+                Omit<response, 'headers' | 'body'>
+                & {
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'application/json' }>;
+                    body: { toStringifyBody: data; body: null }
+                }
+            >
+        > {
         return new LrResponse({
             ...this.response,
-            contentType: 'application/json',
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: {
                 toStringifyBody: data,
                 body: null
             }
-        } as unknown as simplify<Omit<response, 'contentType' | 'body'> & { contentType: 'application/json'; body: { toStringifyBody: data; body: null } }>);
+        } as any);
     }
 
-    text(text: string): LrResponse<simplify<Omit<response, 'contentType' | 'body'> & { contentType: 'text/html'; body: { toStringifyBody: null; body: string } }>> {
+    text<text extends string>(text: text):
+        LrResponse<
+            simplify<
+                Omit<response, 'headers' | 'body'>
+                & {
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/html' }>;
+                    body: { toStringifyBody: null; body: text }
+                }
+            >
+        > {
         return new LrResponse({
             ...this.response,
-            contentType: 'text/html',
+            headers: {
+                'Content-Type': 'text/html',
+            },
             body: {
                 toStringifyBody: null,
                 body: text
             }
-        } as unknown as simplify<Omit<response, 'contentType' | 'body'> & { contentType: 'text/html'; body: { toStringifyBody: null; body: string } }>);
+        } as any);
     }
 }
 
 export function lrResponse() {
     return new LrResponse({
         status: 200,
-        contentType: 'text/html',
+        headers: {
+            'Content-Type': 'text/html',
+        },
         body: {
             toStringifyBody: null,
             body: ''
         },
-        headers: {},
     } as const);
 }
 
