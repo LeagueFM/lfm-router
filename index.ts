@@ -402,6 +402,12 @@ type routerReturnInternal<
             ? (
                 Exclude<Awaited<ReturnType<firstHandlerCallback>>, typeof lrNext>
                 | (
+                    firstHandlerValidations extends { failResponse: (...args: any[]) => infer returnFailResponse }
+                    ? (
+                        Awaited<returnFailResponse>
+                    ) : never
+                )
+                | (
                     (typeof lrNext) extends Awaited<ReturnType<firstHandlerCallback>> ? (
                         routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
                     ) : never
