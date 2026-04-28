@@ -61,7 +61,8 @@ const router = lrRouter('', [
 // const a = router.match('GET', '/');
 
 const app = lrApp(router, {
-    errorResponse: (req, err) => {
+    errorResponse: lrResponse().status(500).json({ success: false } as const),
+    errorResponseFunction: (req, err) => {
         req.method;
         req.path;
         req.params;
