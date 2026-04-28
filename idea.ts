@@ -54,7 +54,7 @@ const handler2 = lrHandler('*', '/*', {
 });
 
 const router = lrRouter('', [
-    handler1,
+    // handler1,
     // handler2,
 ] as const);
 
@@ -62,15 +62,7 @@ const router = lrRouter('', [
 
 const app = lrApp(router, {
     errorResponse: lrResponse().status(500).json({ success: false } as const),
-    errorResponseFunction: (req, err) => {
-        req.method;
-        req.path;
-        req.params;
-        req.body;
-        req.query;
-
-        return lrResponse().status(500).json({ success: false } as const);
-    },
+    // errorResponseFunction: () => lrResponse().status(123),
     noHandlerResponse: (req) => {
         req.method;
         req.path;

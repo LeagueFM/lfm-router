@@ -586,19 +586,19 @@ class LrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
     errorResponse extends LrResponse<lrResponseResponse>,
-    errorResponseFunction extends generalErrorResponseFunction,
-    noHandlerResponse extends noHandlerResponseFunction
+    noHandlerResponse extends noHandlerResponseFunction,
+    errorResponseFunction extends generalErrorResponseFunction | undefined
 > {
     router: LrRouter<pathPrefix, handlers>;
     errorResponse: errorResponse;
     errorResponseFunction: errorResponseFunction;
     noHandlerResponse: noHandlerResponse;
 
-    constructor(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse, errorResponseFunction: errorResponseFunction, noHandlerResponse: noHandlerResponse }) {
+    constructor(router: LrRouter<pathPrefix, handlers>, errorResponse: errorResponse, noHandlerResponse: noHandlerResponse, errorResponseFunction: errorResponseFunction) {
         this.router = router;
-        this.errorResponse = options.errorResponse;
-        this.errorResponseFunction = options.errorResponseFunction;
-        this.noHandlerResponse = options.noHandlerResponse;
+        this.errorResponse = errorResponse;
+        this.errorResponseFunction = errorResponseFunction;
+        this.noHandlerResponse = noHandlerResponse;
     }
 
     // todo: type better
@@ -640,12 +640,16 @@ class LrApp<
 };
 
 export type lrAppReturn<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseResponse>, generalErrorResponseFunction, noHandlerResponseFunction>,
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseResponse>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
     lrRouterReturn<app['router'], testMethod, testPath>
-    | Awaited<ReturnType<app['errorResponseFunction']>>
+    | (
+        app['errorResponseFunction'] extends (...args: any[]) => infer returnErrorResponseFunction
+        ? Awaited<returnErrorResponseFunction>
+        : never
+    )
     | app['errorResponse']
     | (
         canRouterCallNext<app['router']['pathPrefix'], app['router']['handlers'], testMethod, testPath> extends true
@@ -654,7 +658,7 @@ export type lrAppReturn<
     );
 
 export type lrAppRequirements<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseResponse>, generalErrorResponseFunction, noHandlerResponseFunction>,
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseResponse>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -664,8 +668,9 @@ export function lrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
     errorResponse extends LrResponse<lrResponseResponse>,
-    errorResponseFunction extends generalErrorResponseFunction,
-    noHandlerResponse extends noHandlerResponseFunction
->(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse, errorResponseFunction: errorResponseFunction, noHandlerResponse: noHandlerResponse }): LrApp<pathPrefix, handlers, errorResponse, errorResponseFunction, noHandlerResponse> {
-    return new LrApp(router, options);
+    noHandlerResponse extends noHandlerResponseFunction,
+    errorResponseFunction extends generalErrorResponseFunction | undefined = undefined,
+>(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse, errorResponseFunction?: errorResponseFunction, noHandlerResponse: noHandlerResponse }):
+    LrApp<pathPrefix, handlers, errorResponse, noHandlerResponse, errorResponseFunction> {
+    return new LrApp(router, options.errorResponse, options.noHandlerResponse, options.errorResponseFunction as errorResponseFunction);
 }
