@@ -613,19 +613,30 @@ class LrApp<
 
     // todo: type better
     async execute(req: lrRequest<httpMethod, `/${string}`, null>) {
-        const match = this.router.match(req.method, req.path);
+        try {
+            const match = this.router.match(req.method, req.path);
 
-        // todo: error handling
+            const response = await this.#executeInternal(match, req);
 
-        const response = await this.#executeInternal(match, req);
+            if (!response) {
+                // todo: check if return instanceof LrResponse
+                return this.noHandlerResponse(req);
+            }
 
-        if (!response) {
             // todo: check if return instanceof LrResponse
-            return this.noHandlerResponse(req);
+            return response;
+        } catch (e) {
+            try {
+                if (this.errorResponseFunction) {
+                    return await this.errorResponseFunction(req, e);
+                } else {
+                    return this.errorResponse;
+                }
+            } catch (e2) {
+                console.warn('[lfm-router] Error while executing errorResponseFunction', e2);
+                return this.errorResponse;
+            }
         }
-
-        // todo: check if return instanceof LrResponse
-        return response;
     }
 
     // todo: type better
