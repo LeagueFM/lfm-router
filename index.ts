@@ -32,6 +32,7 @@ type afterParseRequest<
     params: params;
     query: query;
     body: body;
+    data: object;
 };
 
 type lrRequest<
@@ -45,6 +46,7 @@ type lrRequest<
     params: params;
     query: Record<string, string>; // not generic, because this is before zod parsing
     body: unknown; // not generic, because this is before zod parsing
+    data: object;
 };
 
 class LrResponse<response extends lrResponseResponse> {
