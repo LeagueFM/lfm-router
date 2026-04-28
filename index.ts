@@ -37,7 +37,8 @@ type afterParseRequest<
 type lrRequest<
     method extends httpMethod,
     path extends `/${string}`,
-    params extends Record<string, string> // string, because this is before zod parsing
+    // string, because this is before zod parsing, and null because this could be in a situation where there is no path definition
+    params extends null | Record<string, string>
 > = {
     method: method;
     path: path;
@@ -519,11 +520,11 @@ export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends 
 const lastResortErrorResponse = lrResponse().status(500);
 
 type errorResponseFunction =
-    (req: lrRequest<httpMethod, `/${string}`, Record<string, string>>, error: unknown)
+    (req: lrRequest<httpMethod, `/${string}`, null>, error: unknown)
         => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
 
 type noHandlerResponseFunction =
-    (req: lrRequest<httpMethod, `/${string}`, Record<string, string>>)
+    (req: lrRequest<httpMethod, `/${string}`, null>)
         => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
 
 class LrApp<
