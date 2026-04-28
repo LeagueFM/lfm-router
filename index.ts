@@ -266,7 +266,6 @@ class LrHandler<
         return true as matchRequest<methods, path, testMethod, testPath>;
     }
 
-    // todo: improve typing
     async execute(req:
         lrRequest<
             methodsDefinitionToMethods<methods>,
@@ -611,8 +610,7 @@ class LrApp<
         this.noHandlerResponse = noHandlerResponse;
     }
 
-    // todo: type better
-    async execute(req: lrRequest<httpMethod, `/${string}`, null>) {
+    async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath, null>): Promise<lrAppReturn<this, testMethod, testPath>> {
         try {
             const match = this.router.match(req.method, req.path);
 
@@ -625,18 +623,24 @@ class LrApp<
                     throw new Error(`noHandlerResponse must return LrResponse, got typeof ${typeof newResponse}`);
                 }
 
-                return newResponse;
+                return newResponse as any;
             }
 
             if (!(response instanceof LrResponse)) {
                 throw new Error(`handler must return LrResponse, got typeof ${typeof response}`);
             }
 
-            return response;
+            return response as any;
         } catch (e) {
             try {
                 if (this.errorResponseFunction) {
-                    return await this.errorResponseFunction(req, e);
+                    const newResponse = await this.errorResponseFunction(req, e);
+
+                    if (!(newResponse instanceof LrResponse)) {
+                        throw new Error(`errorResponseFunction must return LrResponse, got typeof ${typeof newResponse}`);
+                    }
+
+                    return newResponse as any;
                 } else {
                     return this.errorResponse;
                 }
@@ -648,7 +652,6 @@ class LrApp<
     }
 
     // todo: type better
-    // @ts-ignore todo
     async #executeInternal(match: any, req: any) {
         if (match.type === 'handler') {
             const response = await match.handler.execute(req);
@@ -660,7 +663,6 @@ class LrApp<
             return response;
         } else if (match.type === 'router') {
             for (const innerMatch of match.matches) {
-                // @ts-ignore todo
                 const response = await this.#executeInternal(innerMatch, req);
 
                 if (response) {
