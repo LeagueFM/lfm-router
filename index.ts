@@ -265,6 +265,57 @@ class LrHandler<
 
         return true as matchRequest<methods, path, testMethod, testPath>;
     }
+
+    // todo: improve typing
+    async execute(req: lrRequest<httpMethod, `/${string}`, Record<string, any>>) {
+        let newReq = { ...req };
+
+        if (this.validations) {
+            let bodyError = null;
+            let queryError = null;
+            let paramsError = null;
+
+            if (this.validations.body) {
+                const bodyResult = await this.validations.body.safeParseAsync(newReq.body);
+
+                if (!bodyResult.success) {
+                    bodyError = bodyResult.error;
+                } else {
+                    newReq.body = bodyResult.data;
+                }
+            }
+
+            if (this.validations.query) {
+                const queryResult = await this.validations.query.safeParseAsync(newReq.query);
+
+                if (!queryResult.success) {
+                    queryError = queryResult.error;
+                } else {
+                    newReq.query = queryResult.data;
+                }
+            }
+
+            if (this.validations.params) {
+                const paramsResult = await this.validations.params.safeParseAsync(newReq.params);
+
+                if (!paramsResult.success) {
+                    paramsError = paramsResult.error;
+                } else {
+                    newReq.params = paramsResult.data;
+                }
+            }
+
+            if (bodyError || queryError || paramsError) {
+                const response = await this.validations.failResponse(req, { bodyError, queryError, paramsError });
+
+                return response;
+            }
+        }
+
+        const response = await this.callback(newReq);
+
+        return response;
+    }
 };
 
 export function lrHandler<
@@ -543,6 +594,41 @@ class LrApp<
         this.router = router;
         this.errorResponse = options.errorResponse;
         this.noHandlerResponse = options.noHandlerResponse;
+    }
+
+    // todo: type better
+    async execute(req: lrRequest<httpMethod, `/${string}`, null>) {
+        const match = this.router.match(req.method, req.path);
+
+        // todo: error handling
+
+        const response = await this.#executeInternal(match, req);
+
+        if (!response) {
+            // todo: check if return instanceof LrResponse
+            return this.noHandlerResponse(req);
+        }
+
+        // todo: check if return instanceof LrResponse
+        return response;
+    }
+
+    // todo: type better
+    async #executeInternal(match: any, req: any) {
+        if (match.type === 'handler') {
+            // todo: check if return instanceof LrResponse
+            return await match.handler.execute(req);
+        } else if (match.type === 'router') {
+            for (const innerMatch of match.matches) {
+                const response = await this.#executeInternal(innerMatch, req);
+
+                if (response) {
+                    return response;
+                }
+            }
+        }
+
+        return null;
     }
 };
 
