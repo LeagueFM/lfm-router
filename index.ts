@@ -556,7 +556,7 @@ type routerRequirementsInternal<
         )
     ) : (
         // no handlers
-        { body: unknown, query: unknown }
+        { body: {}, query: {} }
     )
     ;
 
