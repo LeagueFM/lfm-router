@@ -65,25 +65,25 @@ export type matchRequest<
         : false
     ) : false;
 
-type pathDefinitionToTypeInternal<definitionPath extends string> =
+type pathDefinitionToTypeInternal<definitionPath extends string, withoutFirstSlash extends boolean = false> =
     definitionPath extends `/${infer part}/${infer rest}`
     ? (
         part extends '*' ? never
         : (
             part extends `:${string}`
-            ? `/${string}${pathDefinitionToTypeInternal<`/${rest}`>}`
-            : `/${part}${pathDefinitionToTypeInternal<`/${rest}`>}`
+            ? `${withoutFirstSlash extends true ? '' : '/'}${string}${pathDefinitionToTypeInternal<`/${rest}`>}`
+            : `${withoutFirstSlash extends true ? '' : '/'}${part}${pathDefinitionToTypeInternal<`/${rest}`>}`
         )
     ) : (
         definitionPath extends `/${infer part}`
         ? (
-            part extends '*' ? `/${string}`
-            : `/${part}`
+            part extends '*' ? `${withoutFirstSlash extends true ? '' : '/'}${string}`
+            : `${withoutFirstSlash extends true ? '' : '/'}${part}`
         ) : never
     );
 
 // string before, because a router could have a path prefix
-export type pathDefinitionToType<definitionPath extends string> = `${string}${pathDefinitionToTypeInternal<definitionPath>}`;
+export type pathDefinitionToType<definitionPath extends string> = `/${string}${pathDefinitionToTypeInternal<definitionPath, true>}`;
 
 type pathDefinitionToParamNames<definitionPath extends string> =
     definitionPath extends `/${infer part}/${infer rest}`
