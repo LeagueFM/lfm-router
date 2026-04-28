@@ -267,8 +267,22 @@ class LrHandler<
     }
 
     // todo: improve typing
-    async execute(req: lrRequest<httpMethod, `/${string}`, Record<string, any>>) {
-        let newReq = { ...req };
+    async execute(req:
+        lrRequest<
+            methodsDefinitionToMethods<methods>,
+            pathDefinitionToType<path>,
+            pathDefinitionToParams<path>
+        >
+    ): Promise<
+        Awaited<ReturnType<callback>> // awaited and promise, because callback doesn't have to be async
+        | (
+            validations extends { failResponse: (...args: any[]) => infer returnFailResponse }
+            ? (
+                Awaited<returnFailResponse>
+            ) : never
+        )
+    > {
+        let newReq = { ...req } as any;
 
         if (this.validations) {
             let bodyError = null;
@@ -291,7 +305,6 @@ class LrHandler<
                 if (!queryResult.success) {
                     queryError = queryResult.error;
                 } else {
-                    // @ts-ignore todo
                     newReq.query = queryResult.data;
                 }
             }
@@ -302,23 +315,20 @@ class LrHandler<
                 if (!paramsResult.success) {
                     paramsError = paramsResult.error;
                 } else {
-                    // @ts-ignore todo
                     newReq.params = paramsResult.data;
                 }
             }
 
             if (bodyError || queryError || paramsError) {
-                // @ts-ignore todo
                 const response = await this.validations.failResponse(req, { bodyError, queryError, paramsError });
 
-                return response;
+                return response as any;
             }
         }
 
-        // @ts-ignore todo
         const response = await this.callback(newReq);
 
-        return response;
+        return response as any;
     }
 };
 
