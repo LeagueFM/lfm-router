@@ -619,11 +619,19 @@ class LrApp<
             const response = await this.#executeInternal(match, req);
 
             if (!response) {
-                // todo: check if return instanceof LrResponse
-                return this.noHandlerResponse(req);
+                const newResponse = await this.noHandlerResponse(req);
+
+                if (!(newResponse instanceof LrResponse)) {
+                    throw new Error(`noHandlerResponse must return LrResponse, got typeof ${typeof newResponse}`);
+                }
+
+                return newResponse;
             }
 
-            // todo: check if return instanceof LrResponse
+            if (!(response instanceof LrResponse)) {
+                throw new Error(`handler must return LrResponse, got typeof ${typeof response}`);
+            }
+
             return response;
         } catch (e) {
             try {
@@ -643,8 +651,13 @@ class LrApp<
     // @ts-ignore todo
     async #executeInternal(match: any, req: any) {
         if (match.type === 'handler') {
-            // todo: check if return instanceof LrResponse
-            return await match.handler.execute(req);
+            const response = await match.handler.execute(req);
+
+            if (!(response instanceof LrResponse)) {
+                throw new Error(`handler (${Array.isArray(match.handler.methods) ? match.handler.methods.join(', ') : match.handler.methods} ${match.handler.path}) must return LrResponse, got typeof ${typeof response}`);
+            }
+
+            return response;
         } else if (match.type === 'router') {
             for (const innerMatch of match.matches) {
                 // @ts-ignore todo
