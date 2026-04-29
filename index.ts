@@ -478,6 +478,56 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
             matches
         };
     }
+
+    async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath>): Promise<lrRouterReturn<this, testMethod, testPath>> {
+        const match = this.router.match(req.method, req.path);
+
+        const response = await this.#executeInternal('', match, req);
+
+        if (!response) {
+            const newResponse = await this.noHandlerResponse(req);
+
+            if (!(newResponse instanceof LrResponse)) {
+                throw new Error(`noHandlerResponse must return LrResponse, got typeof ${typeof newResponse}`);
+            }
+
+            return newResponse as any;
+        }
+
+        if (!(response instanceof LrResponse)) {
+            throw new Error(`handler must return LrResponse, got typeof ${typeof response}`);
+        }
+
+        return response as any;
+    }
+
+    async #executeInternal(
+        currentPathPrefix: string,
+        match: generalRouterMatchReturn,
+        req: lrRequest<httpMethod, `/${string}`>
+    ): Promise<null | LrResponse<lrResponseResponse>> {
+        if (match.type === 'handler') {
+            const response = await match.handler.execute(currentPathPrefix, req);
+
+            if (!(response instanceof LrResponse)) {
+                throw new Error(`handler (${Array.isArray(match.handler.methods) ? match.handler.methods.join(', ') : match.handler.methods} ${match.handler.path}) must return LrResponse, got typeof ${typeof response}`);
+            }
+
+            return response;
+        } else if (match.type === 'router') {
+            currentPathPrefix = `${currentPathPrefix}${match.router.pathPrefix}`;
+
+            for (const innerMatch of match.matches) {
+                const response = await this.#executeInternal(currentPathPrefix, innerMatch, req);
+
+                if (response) {
+                    return response;
+                }
+            }
+        }
+
+        return null;
+    }
 };
 
 type canRouterCallNext<
@@ -559,6 +609,11 @@ export type lrRouterReturn<
     router extends LrRouter<infer pathPrefix, infer handlers>
     ? (
         routerReturnInternal<pathPrefix, handlers, testMethod, testPath>
+        | (
+            canRouterCallNext<pathPrefix, handlers, testMethod, testPath> extends true
+            ? typeof lrNext
+            : never
+        )
     ) : never;
 
 type validationsToRequirements<
@@ -643,75 +698,6 @@ class LrApp<
         this.errorResponse = errorResponse;
         this.errorResponseFunction = errorResponseFunction;
         this.noHandlerResponse = noHandlerResponse;
-    }
-
-    async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath>): Promise<lrAppReturn<this, testMethod, testPath>> {
-        try {
-            const match = this.router.match(req.method, req.path);
-
-            const response = await this.#executeInternal('', match, req);
-
-            if (!response) {
-                const newResponse = await this.noHandlerResponse(req);
-
-                if (!(newResponse instanceof LrResponse)) {
-                    throw new Error(`noHandlerResponse must return LrResponse, got typeof ${typeof newResponse}`);
-                }
-
-                return newResponse as any;
-            }
-
-            if (!(response instanceof LrResponse)) {
-                throw new Error(`handler must return LrResponse, got typeof ${typeof response}`);
-            }
-
-            return response as any;
-        } catch (e) {
-            try {
-                if (this.errorResponseFunction) {
-                    const newResponse = await this.errorResponseFunction(req, e);
-
-                    if (!(newResponse instanceof LrResponse)) {
-                        throw new Error(`errorResponseFunction must return LrResponse, got typeof ${typeof newResponse}`);
-                    }
-
-                    return newResponse as any;
-                } else {
-                    return this.errorResponse;
-                }
-            } catch (e2) {
-                console.warn('[lfm-router] Error while executing errorResponseFunction', e2);
-                return this.errorResponse;
-            }
-        }
-    }
-
-    async #executeInternal(
-        currentPathPrefix: string,
-        match: generalRouterMatchReturn,
-        req: lrRequest<httpMethod, `/${string}`>
-    ): Promise<null | LrResponse<lrResponseResponse>> {
-        if (match.type === 'handler') {
-            const response = await match.handler.execute(currentPathPrefix, req);
-
-            if (!(response instanceof LrResponse)) {
-                throw new Error(`handler (${Array.isArray(match.handler.methods) ? match.handler.methods.join(', ') : match.handler.methods} ${match.handler.path}) must return LrResponse, got typeof ${typeof response}`);
-            }
-
-            return response;
-        } else if (match.type === 'router') {
-            currentPathPrefix = `${currentPathPrefix}${match.router.pathPrefix}`;
-
-            for (const innerMatch of match.matches) {
-                const response = await this.#executeInternal(currentPathPrefix, innerMatch, req);
-
-                if (response) {
-                    return response;
-                }
-            }
-        }
-
-        return null;
     }
 };
 
