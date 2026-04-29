@@ -38,12 +38,10 @@ type afterParseRequest<
 type lrRequest<
     method extends httpMethod,
     path extends `/${string}`,
-    // string, because this is before zod parsing, and null because this could be in a situation where there is no path definition
-    params extends null | Record<string, string>
 > = {
     method: method;
     path: path;
-    params: params;
+    params: null; // null because there is no path definition
     query: Record<string, string>; // not generic, because this is before zod parsing
     body: unknown; // not generic, because this is before zod parsing
     data: object;
@@ -188,7 +186,7 @@ type generalValidations<
     query?: z.ZodType<unknown, Record<string, string>>;
     params?: z.ZodType<unknown, pathDefinitionToParams<path>>;
     failResponse: (
-        req: lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>, pathDefinitionToParams<path>>,
+        req: lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>>,
         errors: {
             bodyError: z.ZodError | null;
             queryError: z.ZodError | null;
@@ -267,11 +265,7 @@ class LrHandler<
     }
 
     async execute(req:
-        lrRequest<
-            methodsDefinitionToMethods<methods>,
-            pathDefinitionToType<path>,
-            pathDefinitionToParams<path>
-        >
+        lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>>
     ): Promise<
         Awaited<ReturnType<callback>> // awaited and promise, because callback doesn't have to be async
         | (
@@ -345,6 +339,21 @@ export function lrHandler<
 >(methods: methods, path: path, validations: validations, callback: callback): LrHandler<methods, path, validations, callback> {
     return new LrHandler(methods, path, validations, callback);
 }
+
+type generalRouterMatchReturn =
+    {
+        type: 'router';
+        router: LrRouter<'' | `/${string}`, generalHandlerOrRouter[]>;
+        matches: generalRouterMatchReturn[];
+    } | {
+        type: 'handler';
+        handler: LrHandler<
+            httpMethod[] | '*',
+            `/${string}`,
+            generalValidations<httpMethod[] | '*', `/${string}`>,
+            lrHandlerCallback<httpMethod, `/${string}`, Record<string, any>, Record<string, any>, unknown>
+        >;
+    };
 
 type routerMatchReturnInternal<
     pathPrefix extends '' | `/${string}`,
@@ -584,11 +593,11 @@ export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends 
 }
 
 type generalErrorResponseFunction =
-    (req: lrRequest<httpMethod, `/${string}`, null>, error: unknown)
+    (req: lrRequest<httpMethod, `/${string}`>, error: unknown)
         => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
 
 type noHandlerResponseFunction =
-    (req: lrRequest<httpMethod, `/${string}`, null>)
+    (req: lrRequest<httpMethod, `/${string}`>)
         => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
 
 class LrApp<
@@ -610,7 +619,7 @@ class LrApp<
         this.noHandlerResponse = noHandlerResponse;
     }
 
-    async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath, null>): Promise<lrAppReturn<this, testMethod, testPath>> {
+    async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath>): Promise<lrAppReturn<this, testMethod, testPath>> {
         try {
             const match = this.router.match(req.method, req.path);
 
@@ -651,8 +660,7 @@ class LrApp<
         }
     }
 
-    // todo: type better
-    async #executeInternal(match: any, req: any) {
+    async #executeInternal(match: generalRouterMatchReturn, req: lrRequest<httpMethod, `/${string}`>): Promise<null | LrResponse<lrResponseResponse>> {
         if (match.type === 'handler') {
             const response = await match.handler.execute(req);
 
