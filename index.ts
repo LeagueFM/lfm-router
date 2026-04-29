@@ -117,6 +117,24 @@ class LrResponse<response extends lrResponseResponse> {
         } as any);
     }
 
+    headers<headers extends Record<string, string>>(headers: headers):
+        LrResponse<
+            simplify<
+                Omit<response, 'headers'>
+                & {
+                    headers: simplify<Omit<response['headers'], keyof headers> & headers>;
+                }
+            >
+        > {
+        return new LrResponse({
+            ...this.response,
+            headers: {
+                ...this.response.headers,
+                ...headers,
+            }
+        } as any);
+    }
+
     json<data>(data: data):
         LrResponse<
             simplify<
