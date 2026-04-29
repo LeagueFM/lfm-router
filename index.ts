@@ -703,6 +703,45 @@ class LrApp<
         this.errorResponseFunction = errorResponseFunction;
         this.noHandlerResponse = noHandlerResponse;
     }
+
+    async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath>): Promise<lrAppReturn<this, testMethod, testPath>> {
+        try {
+            const response = await this.router.execute(req);
+
+            if (response === lrNext) {
+                const newResponse = await this.noHandlerResponse(req);
+
+                if (!(newResponse instanceof LrResponse)) {
+                    throw new Error(`noHandlerResponse must return LrResponse, got typeof ${typeof newResponse}`);
+                }
+
+                return newResponse as lrAppReturn<this, testMethod, testPath>;
+            }
+
+            if (!((response as any) instanceof LrResponse)) {
+                throw new Error(`handler must return LrResponse, got typeof ${typeof response}`);
+            }
+
+            return response as lrAppReturn<this, testMethod, testPath>;
+        } catch (e) {
+            try {
+                if (this.errorResponseFunction) {
+                    const newResponse = await this.errorResponseFunction(req, e);
+
+                    if (!(newResponse instanceof LrResponse)) {
+                        throw new Error(`errorResponseFunction must return LrResponse, got typeof ${typeof newResponse}`);
+                    }
+
+                    return newResponse as any;
+                } else {
+                    return this.errorResponse;
+                }
+            } catch (e2) {
+                console.warn('[lfm-router] Error while executing errorResponseFunction', e2);
+                return this.errorResponse;
+            }
+        }
+    }
 };
 
 export type lrAppReturn<
