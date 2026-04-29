@@ -54,9 +54,11 @@ const handler2 = lrHandler('*', '/*', {
 });
 
 const router = lrRouter('', [
-    // handler1,
+    handler1,
     // handler2,
 ] as const);
+
+type c = lrRouterReturn<typeof router, 'GET', '/foo/hi'>;
 
 // const a = router.match('GET', '/');
 
