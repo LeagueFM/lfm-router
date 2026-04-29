@@ -212,15 +212,11 @@ class LrHandler<
     validations: validations;
     callback: callback;
 
-    pathParts: pathParts;
-
     constructor(methods: methods, path: path, validations: validations, callback: callback) {
         this.methods = methods;
         this.path = path;
         this.validations = validations;
         this.callback = callback;
-
-        this.pathParts = pathToParts(path);
     }
 
     match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
@@ -235,14 +231,16 @@ class LrHandler<
 
         const reqPathSplit = path.slice(1).split('/');
 
-        if (reqPathSplit.length < this.pathParts.length) return false as matchRequest<methods, path, testMethod, testPath>;
+        const pathParts = pathToParts(this.path);
+
+        if (reqPathSplit.length < pathParts.length) return false as matchRequest<methods, path, testMethod, testPath>;
 
         let hasRest = false;
 
-        for (const stringI in this.pathParts) {
+        for (const stringI in pathParts) {
             const i = parseInt(stringI);
 
-            const pathPart = this.pathParts[i]!;
+            const pathPart = pathParts[i]!;
             const reqPart = reqPathSplit[i];
 
             if (pathPart.type === 'literal' && pathPart.value !== reqPart) return false as matchRequest<methods, path, testMethod, testPath>;
@@ -253,7 +251,7 @@ class LrHandler<
             }
         }
 
-        if (reqPathSplit.length > this.pathParts.length) {
+        if (reqPathSplit.length > pathParts.length) {
             if (hasRest) {
                 return true as matchRequest<methods, path, testMethod, testPath>;
             } else {
@@ -264,8 +262,9 @@ class LrHandler<
         return true as matchRequest<methods, path, testMethod, testPath>;
     }
 
-    async execute(req:
-        lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>>
+    async execute(
+        pathPrefix: string,
+        req: lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>>
     ): Promise<
         Awaited<ReturnType<callback>> // awaited and promise, because callback doesn't have to be async
         | (
@@ -650,7 +649,7 @@ class LrApp<
         try {
             const match = this.router.match(req.method, req.path);
 
-            const response = await this.#executeInternal(match, req);
+            const response = await this.#executeInternal('', match, req);
 
             if (!response) {
                 const newResponse = await this.noHandlerResponse(req);
@@ -687,9 +686,13 @@ class LrApp<
         }
     }
 
-    async #executeInternal(match: generalRouterMatchReturn, req: lrRequest<httpMethod, `/${string}`>): Promise<null | LrResponse<lrResponseResponse>> {
+    async #executeInternal(
+        currentPathPrefix: string,
+        match: generalRouterMatchReturn,
+        req: lrRequest<httpMethod, `/${string}`>
+    ): Promise<null | LrResponse<lrResponseResponse>> {
         if (match.type === 'handler') {
-            const response = await match.handler.execute(req);
+            const response = await match.handler.execute(currentPathPrefix, req);
 
             if (!(response instanceof LrResponse)) {
                 throw new Error(`handler (${Array.isArray(match.handler.methods) ? match.handler.methods.join(', ') : match.handler.methods} ${match.handler.path}) must return LrResponse, got typeof ${typeof response}`);
@@ -697,8 +700,10 @@ class LrApp<
 
             return response;
         } else if (match.type === 'router') {
+            currentPathPrefix = `${currentPathPrefix}${match.router.pathPrefix}`;
+
             for (const innerMatch of match.matches) {
-                const response = await this.#executeInternal(innerMatch, req);
+                const response = await this.#executeInternal(currentPathPrefix, innerMatch, req);
 
                 if (response) {
                     return response;
