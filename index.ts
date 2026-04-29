@@ -6,6 +6,26 @@ import { z } from 'zod';
 // typescript sometimes converts the Symbol('lrNext') to symbol, so we just convert it to a special object
 export const lrNext = Symbol('lrNext') as unknown as 'lrNext' & { __lrNext: symbol };
 
+const defaultStatusMessages = {
+    200: 'OK',
+    201: 'Created',
+    204: 'No Content',
+    301: 'Moved Permanently',
+    302: 'Found',
+    303: 'See Other',
+    304: 'Not Modified',
+    307: 'Temporary Redirect',
+    308: 'Permanent Redirect',
+    400: 'Bad Request',
+    401: 'Unauthorized',
+    403: 'Forbidden',
+    404: 'Not Found',
+    405: 'Method Not Allowed',
+    410: 'Gone',
+    413: 'Content Too Large',
+    415: 'Unsupported Media Type',
+};
+
 type responseBody = {
     toStringifyBody: any;
     body: null;
@@ -74,6 +94,7 @@ class LrResponse<response extends lrResponseResponse> {
         return new LrResponse({
             ...this.response,
             headers: {
+                ...this.response.headers,
                 'Content-Type': 'application/json',
             },
             body: {
@@ -96,6 +117,7 @@ class LrResponse<response extends lrResponseResponse> {
         return new LrResponse({
             ...this.response,
             headers: {
+                ...this.response.headers,
                 'Content-Type': 'text/plain',
             },
             body: {
