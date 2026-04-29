@@ -144,6 +144,62 @@ class LrResponse<response extends lrResponseResponse> {
             }
         } as any);
     }
+
+    redirect<url extends string>(url: url):
+        LrResponse<
+            simplify<
+                {
+                    status: 307;
+                    statusMessage: (typeof defaultStatusMessages)[307];
+                    headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain' }>;
+                    body: { toStringifyBody: null; body: '' }
+                } &
+                Omit<response, 'status' | 'statusMessage' | 'headers' | 'body'>
+            >
+        > {
+        return new LrResponse({
+            ...this.response,
+            status: 307,
+            statusMessage: defaultStatusMessages[307],
+            headers: {
+                ...this.response.headers,
+                'Location': url,
+                'Content-Type': 'text/plain',
+            },
+            body: {
+                toStringifyBody: null,
+                body: ''
+            }
+        } as any);
+    }
+
+    permanentRedirect<url extends string>(url: url):
+        LrResponse<
+            simplify<
+                {
+                    status: 308;
+                    statusMessage: (typeof defaultStatusMessages)[308];
+                    headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain' }>;
+                    body: { toStringifyBody: null; body: '' }
+                } &
+                Omit<response, 'status' | 'statusMessage' | 'headers' | 'body'>
+            >
+        > {
+        return new LrResponse({
+            ...this.response,
+            status: 308,
+            statusMessage: defaultStatusMessages[308],
+            headers: {
+                ...this.response.headers,
+                'Location': url,
+                'Content-Type': 'text/plain',
+            },
+            body: {
+                toStringifyBody: null,
+                body: ''
+            }
+        } as any);
+    }
 }
 
 export function lrResponse() {
