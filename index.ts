@@ -24,6 +24,9 @@ const defaultStatusMessages = {
     410: 'Gone',
     413: 'Content Too Large',
     415: 'Unsupported Media Type',
+    500: 'Internal Server Error',
+    501: 'Not Implemented',
+    503: 'Service Unavailable',
 };
 
 type responseBody = {
