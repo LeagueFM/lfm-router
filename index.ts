@@ -27,7 +27,7 @@ const defaultStatusMessages = {
     500: 'Internal Server Error',
     501: 'Not Implemented',
     503: 'Service Unavailable',
-};
+} as const;
 
 type responseBody = {
     toStringifyBody: any;
@@ -39,6 +39,7 @@ type responseBody = {
 
 type lrResponseResponse = {
     status: number;
+    statusMessage: string;
     body: responseBody;
     headers: Record<string, string>;
 };
@@ -77,10 +78,26 @@ class LrResponse<response extends lrResponseResponse> {
         this.response = response;
     }
 
-    status<status extends number>(status: status): LrResponse<simplify<{ status: status } & Omit<response, 'status'>>> {
+    status<status extends number, statusMessage extends string | undefined = undefined>(status: status, statusMessage?: statusMessage):
+        LrResponse<
+            simplify<
+                {
+                    status: status;
+                    statusMessage:
+                    statusMessage extends undefined
+                    ? (
+                        status extends keyof typeof defaultStatusMessages
+                        ? (typeof defaultStatusMessages)[status]
+                        : ''
+                    ) : statusMessage;
+                }
+                & Omit<response, 'status' | 'statusMessage'>
+            >
+        > {
         return new LrResponse({
             ...this.response,
-            status
+            status,
+            statusMessage: statusMessage ?? defaultStatusMessages[status as keyof typeof defaultStatusMessages] ?? '',
         } as any);
     }
 
@@ -134,6 +151,7 @@ class LrResponse<response extends lrResponseResponse> {
 export function lrResponse() {
     return new LrResponse({
         status: 200,
+        statusMessage: defaultStatusMessages[200],
         headers: {
             'Content-Type': 'text/html',
         },
