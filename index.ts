@@ -88,7 +88,7 @@ class LrResponse<response extends lrResponseResponse> {
             simplify<
                 Omit<response, 'headers' | 'body'>
                 & {
-                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/html' }>;
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/plain' }>;
                     body: { toStringifyBody: null; body: text }
                 }
             >
@@ -96,7 +96,7 @@ class LrResponse<response extends lrResponseResponse> {
         return new LrResponse({
             ...this.response,
             headers: {
-                'Content-Type': 'text/html',
+                'Content-Type': 'text/plain',
             },
             body: {
                 toStringifyBody: null,
