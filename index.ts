@@ -480,37 +480,35 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
     }
 
     async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath>): Promise<lrRouterReturn<this, testMethod, testPath>> {
-        const match = this.router.match(req.method, req.path);
+        const match = this.match(req.method, req.path);
 
         const response = await this.#executeInternal('', match, req);
 
-        if (!response) {
-            const newResponse = await this.noHandlerResponse(req);
-
-            if (!(newResponse instanceof LrResponse)) {
-                throw new Error(`noHandlerResponse must return LrResponse, got typeof ${typeof newResponse}`);
-            }
-
-            return newResponse as any;
+        if (response === lrNext) {
+            return lrNext as lrRouterReturn<this, testMethod, testPath>;
         }
 
         if (!(response instanceof LrResponse)) {
             throw new Error(`handler must return LrResponse, got typeof ${typeof response}`);
         }
 
-        return response as any;
+        return response as lrRouterReturn<this, testMethod, testPath>;
     }
 
     async #executeInternal(
         currentPathPrefix: string,
         match: generalRouterMatchReturn,
         req: lrRequest<httpMethod, `/${string}`>
-    ): Promise<null | LrResponse<lrResponseResponse>> {
+    ): Promise<LrResponse<lrResponseResponse> | typeof lrNext> {
         if (match.type === 'handler') {
             const response = await match.handler.execute(currentPathPrefix, req);
 
+            if (response === lrNext) {
+                return lrNext;
+            }
+
             if (!(response instanceof LrResponse)) {
-                throw new Error(`handler (${Array.isArray(match.handler.methods) ? match.handler.methods.join(', ') : match.handler.methods} ${match.handler.path}) must return LrResponse, got typeof ${typeof response}`);
+                throw new Error(`handler (${Array.isArray(match.handler.methods) ? match.handler.methods.join(', ') : match.handler.methods} ${match.handler.path}) must return LrResponse or lrNext, got typeof ${typeof response}`);
             }
 
             return response;
@@ -520,13 +518,19 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
             for (const innerMatch of match.matches) {
                 const response = await this.#executeInternal(currentPathPrefix, innerMatch, req);
 
-                if (response) {
-                    return response;
+                if (response === lrNext) {
+                    continue;
                 }
+
+                if (!(response instanceof LrResponse)) {
+                    throw new Error(`handler must return LrResponse or lrNext, got typeof ${typeof response}`);
+                }
+
+                return response;
             }
         }
 
-        return null;
+        return lrNext;
     }
 };
 
