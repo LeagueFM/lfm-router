@@ -57,6 +57,7 @@ type afterParseRequest<
     query: query;
     body: body;
     data: object;
+    ip: string;
 };
 
 type lrRequest<
@@ -69,6 +70,7 @@ type lrRequest<
     query: Record<string, string>; // not generic, because this is before zod parsing
     body: unknown; // not generic, because this is before zod parsing
     data: object;
+    ip: string;
 };
 
 class LrResponse<response extends lrResponseResponse> {
