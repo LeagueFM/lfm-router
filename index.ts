@@ -166,6 +166,41 @@ function pathToParts(path: string): pathParts {
     return parts;
 }
 
+function parseParams(pathPrefix: string, path: string, reqPath: string): Record<string, string> {
+    if (!reqPath.startsWith(pathPrefix)) {
+        throw new Error(`parseParams got reqPath ${reqPath} that doesn't start with pathPrefix ${pathPrefix}`);
+    }
+
+    const restPath = reqPath.slice(pathPrefix.length);
+
+    if (!restPath.startsWith('/')) {
+        throw new Error(`parseParams has restPath ${restPath} that doesn't start with /`);
+    }
+
+    const parts = pathToParts(path);
+
+    const restPathParts = restPath.slice(1).split('/');
+
+    if (restPathParts.length < parts.length) {
+        throw new Error(`parseParams has restPathParts ${restPathParts} that are less than parts ${parts}`);
+    }
+
+    let params: Record<string, string> = {};
+
+    for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]!;
+        const restPart = restPathParts[i]!;
+
+        if (part.type === 'param') {
+            params[part.name] = restPart;
+        } else if (part.type === 'rest') {
+            params['*'] = restPathParts.slice(i).join('/');
+        }
+    }
+
+    return params;
+}
+
 type lrHandlerReturn = LrResponse<lrResponseResponse> | typeof lrNext;
 
 type lrHandlerCallback<
@@ -276,7 +311,7 @@ class LrHandler<
     > {
         let newReq = { ...req } as any;
 
-        // todo: parse params from newReq.path
+        newReq.params = parseParams(pathPrefix, this.path, newReq.path);
 
         if (this.validations) {
             let bodyError = null;
