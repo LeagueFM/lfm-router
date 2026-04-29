@@ -340,20 +340,23 @@ export function lrHandler<
     return new LrHandler(methods, path, validations, callback);
 }
 
-type generalRouterMatchReturn =
-    {
-        type: 'router';
-        router: LrRouter<'' | `/${string}`, generalHandlerOrRouter[]>;
-        matches: generalRouterMatchReturn[];
-    } | {
-        type: 'handler';
-        handler: LrHandler<
-            httpMethod[] | '*',
-            `/${string}`,
-            generalValidations<httpMethod[] | '*', `/${string}`>,
-            lrHandlerCallback<httpMethod, `/${string}`, Record<string, any>, Record<string, any>, unknown>
-        >;
-    };
+type generalRouterMatch = {
+    type: 'router';
+    router: LrRouter<'' | `/${string}`, generalHandlerOrRouter[]>;
+    matches: generalRouterMatchReturn[];
+};
+
+type generalHandlerMatch = {
+    type: 'handler';
+    handler: LrHandler<
+        httpMethod[] | '*',
+        `/${string}`,
+        generalValidations<httpMethod[] | '*', `/${string}`>,
+        lrHandlerCallback<httpMethod, `/${string}`, Record<string, any>, Record<string, any>, unknown>
+    >;
+};
+
+type generalRouterMatchReturn = generalHandlerMatch | generalRouterMatch;
 
 type routerMatchReturnInternal<
     pathPrefix extends '' | `/${string}`,
@@ -423,11 +426,36 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
     match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
         routerMatchReturn<pathPrefix, handlers, testMethod, testPath> {
 
-        let matches = [];
+        return this.#matchInternal('', method, path) as routerMatchReturn<pathPrefix, handlers, testMethod, testPath>;
+    }
+
+    #matchInternal(previousPathPrefix: string, method: httpMethod, path: `/${string}`): generalRouterMatch {
+        const currentPathPrefix = `${previousPathPrefix}${this.pathPrefix}`;
+
+        if (!path.startsWith(currentPathPrefix)) {
+            return {
+                type: 'router',
+                router: this,
+                matches: []
+            };
+        }
+
+        const restPath = path.slice(currentPathPrefix.length);
+
+        if (!restPath.startsWith('/')) {
+            return {
+                type: 'router',
+                router: this,
+                matches: []
+            };
+        }
+
+        let matches: generalRouterMatchReturn[] = [];
 
         for (const handler of this.handlers) {
             if (handler instanceof LrHandler) {
-                const match = handler.match(method, (this.pathPrefix + path) as `/${string}`);
+                const match = handler.match(method, restPath as `/${string}`);
+
                 if (match) {
                     matches.push({
                         type: 'handler',
@@ -435,13 +463,10 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
                     });
                 }
             } else if (handler instanceof LrRouter) {
-                const match = handler.match(method, (this.pathPrefix + path) as `/${string}`);
-                if (match.matches) {
-                    matches.push({
-                        type: 'router',
-                        router: handler,
-                        matches: match.matches
-                    });
+                const match = handler.#matchInternal(currentPathPrefix, method, restPath as `/${string}`);
+
+                if (match.matches.length > 0) {
+                    matches.push(match);
                 }
             }
         }
@@ -449,7 +474,7 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
         return {
             type: 'router',
             router: this,
-            matches: matches as routerMatchReturnInternal<pathPrefix, handlers, testMethod, testPath>
+            matches
         };
     }
 };
