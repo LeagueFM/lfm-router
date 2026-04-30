@@ -37,7 +37,7 @@ type lrResponseResponse = {
     status: number;
     statusMessage: string;
     body: responseBody;
-    headers: Record<string, string | string[]>;
+    headers: Record<string, string>;
 };
 
 type afterParseRequest<
@@ -54,7 +54,7 @@ type afterParseRequest<
     body: body;
     data: object;
     ip: string;
-    headers: Record<string, string | string[]>;
+    headers: Record<string, string>;
 };
 
 type lrRequest<
@@ -68,7 +68,7 @@ type lrRequest<
     body: unknown; // not generic, because this is before zod parsing
     data: object;
     ip: string;
-    headers: Record<string, string | string[]>;
+    headers: Record<string, string>;
 };
 
 class LrResponse<response extends lrResponseResponse> {
@@ -101,7 +101,7 @@ class LrResponse<response extends lrResponseResponse> {
         } as any);
     }
 
-    header<key extends string, value extends string | string[]>(key: key, value: value):
+    header<key extends string, value extends string>(key: key, value: value):
         LrResponse<
             simplify<
                 Omit<response, 'headers'>
@@ -119,7 +119,7 @@ class LrResponse<response extends lrResponseResponse> {
         } as any);
     }
 
-    headers<headers extends Record<string, string | string[]>>(headers: headers):
+    headers<headers extends Record<string, string>>(headers: headers):
         LrResponse<
             simplify<
                 Omit<response, 'headers'>

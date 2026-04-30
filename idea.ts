@@ -2,6 +2,8 @@ import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
 import type { lrRouterReturn, lrRouterRequirements, lrAppReturn, lrAppRequirements } from ".";
 import { z } from 'zod';
 
+const e = lrResponse()
+
 const handler1 = lrHandler('*', '/foo/*', {
     body: z.object({
         name: z.string(),
