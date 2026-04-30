@@ -1,8 +1,6 @@
 import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
-import type { lrRouterReturn, lrRouterRequirements, lrAppReturn, lrAppRequirements } from ".";
+import type { lrRouterReturn, lrRouterRequirements, lrAppReturn, lrAppRequirements, LrResponse, lrResponseObject } from ".";
 import { z } from 'zod';
-
-const e = lrResponse()
 
 const handler1 = lrHandler('*', '/foo/*', {
     body: z.object({
@@ -62,8 +60,6 @@ const router = lrRouter('', [
 
 type c = lrRouterReturn<typeof router, 'GET', '/foo/hi'>;
 
-// const a = router.match('GET', '/');
-
 const app = lrApp(router, {
     errorResponse: lrResponse().status(500).json({ success: false } as const),
     // errorResponseFunction: () => lrResponse().status(123),
@@ -75,7 +71,7 @@ const app = lrApp(router, {
         req.query;
 
         return lrResponse().status(404).json({ success: false } as const);
-    }
+    },
 });
 
 type a = lrAppReturn<typeof app, 'GET', '/foo/hi'>;
