@@ -1,6 +1,14 @@
 import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
-import type { lrRouterReturn, lrRouterRequirements, lrAppReturn, lrAppRequirements, LrResponse, lrResponseObject } from ".";
+import type { lrRouterReturn, lrRouterRequirements, lrAppReturn, lrAppRequirements, LrResponse, lrResponseObject, lrResponseStatus } from ".";
 import { z } from 'zod';
+
+const e = lrResponse().status(400);
+
+const responseModifier = <response extends lrResponseObject>(response: LrResponse<response>): LrResponse<lrResponseStatus<response, 500>> => {
+    return response.status(500);
+};
+
+const f = responseModifier(e);
 
 const handler1 = lrHandler('*', '/foo/*', {
     body: z.object({
