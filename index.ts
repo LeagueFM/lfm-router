@@ -59,7 +59,7 @@ type responseCookie = {
     options: responseCookieOptions;
 };
 
-type lrResponseResponse = {
+type lrResponseObject = {
     status: number;
     statusMessage: string;
     body: responseBody;
@@ -100,7 +100,7 @@ type lrRequest<
     cookies: Record<string, string>;
 };
 
-class LrResponse<response extends lrResponseResponse> {
+class LrResponse<response extends lrResponseObject> {
     response: response;
 
     constructor(response: response) {
@@ -407,7 +407,7 @@ function parseParams(pathPrefix: string, path: string, reqPath: string): Record<
     return params;
 }
 
-type lrHandlerReturn = LrResponse<lrResponseResponse> | typeof lrNext;
+type lrHandlerReturn = LrResponse<lrResponseObject> | typeof lrNext;
 
 type lrHandlerCallback<
     method extends httpMethod,
@@ -433,7 +433,7 @@ type generalValidations<
             queryError: z.ZodError | null;
             paramsError: z.ZodError | null;
         }
-    ) => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
+    ) => LrResponse<lrResponseObject> | Promise<LrResponse<lrResponseObject>>;
 };
 
 class LrHandler<
@@ -740,7 +740,7 @@ class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHan
         currentPathPrefix: string,
         match: generalRouterMatchReturn,
         req: lrRequest<httpMethod, `/${string}`>
-    ): Promise<LrResponse<lrResponseResponse> | typeof lrNext> {
+    ): Promise<LrResponse<lrResponseObject> | typeof lrNext> {
         if (match.type === 'handler') {
             const response = await match.handler.execute(currentPathPrefix, req);
 
@@ -920,16 +920,16 @@ export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends 
 
 type generalErrorResponseFunction =
     (req: lrRequest<httpMethod, `/${string}`>, error: unknown)
-        => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
+        => LrResponse<lrResponseObject> | Promise<LrResponse<lrResponseObject>>;
 
 type noHandlerResponseFunction =
     (req: lrRequest<httpMethod, `/${string}`>)
-        => LrResponse<lrResponseResponse> | Promise<LrResponse<lrResponseResponse>>;
+        => LrResponse<lrResponseObject> | Promise<LrResponse<lrResponseObject>>;
 
 class LrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
-    errorResponse extends LrResponse<lrResponseResponse>,
+    errorResponse extends LrResponse<lrResponseObject>,
     noHandlerResponse extends noHandlerResponseFunction,
     errorResponseFunction extends generalErrorResponseFunction | undefined
 > {
@@ -986,7 +986,7 @@ class LrApp<
 };
 
 export type lrAppReturn<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseResponse>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseObject>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -1004,7 +1004,7 @@ export type lrAppReturn<
     );
 
 export type lrAppRequirements<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseResponse>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseObject>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -1013,7 +1013,7 @@ export type lrAppRequirements<
 export function lrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
-    errorResponse extends LrResponse<lrResponseResponse>,
+    errorResponse extends LrResponse<lrResponseObject>,
     noHandlerResponse extends noHandlerResponseFunction,
     errorResponseFunction extends generalErrorResponseFunction | undefined = undefined,
 >(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse, errorResponseFunction?: errorResponseFunction, noHandlerResponse: noHandlerResponse }):
