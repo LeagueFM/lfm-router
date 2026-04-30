@@ -1,4 +1,4 @@
-export type { lrResponseObject, lrResponseStatus } from "./response";
+export type { lrResponseObject } from "./response";
 export { LrResponse, lrResponse } from "./response";
 
 import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods, recursiveSimplify, simplify } from "./types";

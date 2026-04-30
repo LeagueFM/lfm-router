@@ -61,21 +61,6 @@ export type lrResponseObject = {
     cookies: Record<string, responseCookie>;
 };
 
-export type lrResponseStatus<response extends lrResponseObject, status extends number, statusMessage extends string | undefined = undefined> =
-    simplify<
-        {
-            status: status;
-            statusMessage:
-            statusMessage extends undefined
-            ? (
-                status extends keyof typeof defaultStatusMessages
-                ? (typeof defaultStatusMessages)[status]
-                : ''
-            ) : statusMessage;
-        }
-        & Omit<response, 'status' | 'statusMessage'>
-    >;
-
 export class LrResponse<response extends lrResponseObject> {
     response: response;
 
@@ -84,7 +69,21 @@ export class LrResponse<response extends lrResponseObject> {
     }
 
     status<status extends number, statusMessage extends string | undefined = undefined>(status: status, statusMessage?: statusMessage):
-        LrResponse<lrResponseStatus<response, status, statusMessage>> {
+        LrResponse<
+            simplify<
+                {
+                    status: status;
+                    statusMessage:
+                    statusMessage extends undefined
+                    ? (
+                        status extends keyof typeof defaultStatusMessages
+                        ? (typeof defaultStatusMessages)[status]
+                        : ''
+                    ) : statusMessage;
+                }
+                & Omit<response, 'status' | 'statusMessage'>
+            >
+        > {
         return new LrResponse({
             ...this.response,
             status,
