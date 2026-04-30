@@ -296,7 +296,13 @@ class LrResponse<response extends lrResponseResponse> {
             ...this.response,
             cookies: {
                 ...this.response.cookies,
-                [name]: { value, options },
+                [name]: {
+                    value,
+                    options: options ? {
+                        ...defaultResponseCookieOptions,
+                        ...options,
+                    } : defaultResponseCookieOptions
+                },
             }
         } as any);
     }
