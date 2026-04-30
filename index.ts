@@ -82,6 +82,7 @@ type afterParseRequest<
     data: object;
     ip: string;
     headers: Record<string, string>;
+    cookies: Record<string, string>;
 };
 
 type lrRequest<
@@ -96,6 +97,7 @@ type lrRequest<
     data: object;
     ip: string;
     headers: Record<string, string>;
+    cookies: Record<string, string>;
 };
 
 class LrResponse<response extends lrResponseResponse> {
