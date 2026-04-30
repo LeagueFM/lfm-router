@@ -54,6 +54,7 @@ type afterParseRequest<
     body: body;
     data: object;
     ip: string;
+    headers: Record<string, string | string[]>;
 };
 
 type lrRequest<
@@ -67,6 +68,7 @@ type lrRequest<
     body: unknown; // not generic, because this is before zod parsing
     data: object;
     ip: string;
+    headers: Record<string, string | string[]>;
 };
 
 class LrResponse<response extends lrResponseResponse> {
