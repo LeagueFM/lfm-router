@@ -36,6 +36,7 @@ type responseBody = {
 type responseCookieOptions = {
     httpOnly: boolean;
     secure: boolean;
+    partitioned: boolean;
     sameSite: 'lax' | 'strict' | 'none';
     path: string;
     domain: string;
@@ -45,6 +46,7 @@ type responseCookieOptions = {
 const defaultResponseCookieOptions = {
     httpOnly: false,
     secure: false,
+    partitioned: false,
     sameSite: 'lax',
     path: '/',
     domain: '',
