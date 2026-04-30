@@ -59,7 +59,7 @@ type responseCookie = {
     options: responseCookieOptions;
 };
 
-type lrResponseObject = {
+export type lrResponseObject = {
     status: number;
     statusMessage: string;
     body: responseBody;
@@ -100,7 +100,7 @@ type lrRequest<
     cookies: Record<string, string>;
 };
 
-class LrResponse<response extends lrResponseObject> {
+export class LrResponse<response extends lrResponseObject> {
     response: response;
 
     constructor(response: response) {
