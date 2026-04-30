@@ -710,7 +710,7 @@ export type lrAppReturn<
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
-    lrRouterReturn<app['router'], testMethod, testPath>
+    Exclude<lrRouterReturn<app['router'], testMethod, testPath>, typeof lrNext>
     | (
         app['errorResponseFunction'] extends (...args: any[]) => infer returnErrorResponseFunction
         ? Awaited<returnErrorResponseFunction>
