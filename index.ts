@@ -33,11 +33,36 @@ type responseBody = {
     body: string;
 };
 
+type responseCookieOptions = {
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: 'lax' | 'strict' | 'none';
+    path: string;
+    domain: string;
+    maxAge: number;
+};
+
+const defaultResponseCookieOptions = {
+    httpOnly: false,
+    secure: false,
+    sameSite: 'lax',
+    path: '/',
+    domain: '',
+    /** 60 * 60 * 24 * 365 */
+    maxAge: 31536000,
+} as const satisfies responseCookieOptions;
+
+type responseCookie = {
+    value: string;
+    options: responseCookieOptions;
+};
+
 type lrResponseResponse = {
     status: number;
     statusMessage: string;
     body: responseBody;
     headers: Record<string, string>;
+    cookies: Record<string, responseCookie>;
 };
 
 type afterParseRequest<
@@ -238,6 +263,41 @@ class LrResponse<response extends lrResponseResponse> {
             }
         } as any);
     }
+
+    cookie<
+        name extends string,
+        value extends string,
+        options extends Partial<responseCookieOptions> | undefined = undefined
+    >(name: name, value: value, options?: options):
+        LrResponse<
+            simplify<
+                Omit<response, 'cookie'>
+                & {
+                    cookies: simplify<
+                        Omit<response['cookies'], name>
+                        & {
+                            [key in name]: {
+                                value: value;
+                                options: options extends undefined
+                                ? typeof defaultResponseCookieOptions
+                                : simplify<
+                                    Omit<options, Exclude<keyof options, keyof responseCookieOptions>>
+                                    & Omit<typeof defaultResponseCookieOptions, keyof options>
+                                >
+                            }
+                        }
+                    >;
+                }
+            >
+        > {
+        return new LrResponse({
+            ...this.response,
+            cookies: {
+                ...this.response.cookies,
+                [name]: { value, options },
+            }
+        } as any);
+    }
 }
 
 export function lrResponse() {
@@ -251,6 +311,7 @@ export function lrResponse() {
             toStringifyBody: null,
             body: ''
         },
+        cookies: {}
     } as const);
 }
 
