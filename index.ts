@@ -689,40 +689,56 @@ class LrApp<
 
     async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath>): Promise<lrAppReturn<this, testMethod, testPath>> {
         try {
-            const response = await this.router.execute(req);
 
-            if (response === lrNext) {
-                const newResponse = await this.noHandlerResponse(req);
+            let response: LrResponse<lrResponseObject>;
 
-                if (!(newResponse instanceof LrResponse)) {
-                    throw new Error(`noHandlerResponse must return LrResponse, got typeof ${typeof newResponse}`);
+            try {
+                const routerResponse: LrResponse<lrResponseObject> | typeof lrNext = await this.router.execute(req);
+
+                if (routerResponse === lrNext) {
+                    const noHandlerResponse = await this.noHandlerResponse(req);
+
+                    if (!(noHandlerResponse instanceof LrResponse)) {
+                        throw new Error(`noHandlerResponse must return LrResponse, got typeof ${typeof noHandlerResponse}`);
+                    }
+
+                    response = noHandlerResponse;
+                } else {
+                    if (!((routerResponse as any) instanceof LrResponse)) {
+                        throw new Error(`handler must return LrResponse, got typeof ${typeof routerResponse}`);
+                    }
+
+                    response = routerResponse as LrResponse<lrResponseObject>;
+                }
+            } catch (e) {
+                if (!this.errorResponseFunction) {
+                    throw e;
                 }
 
-                return newResponse as lrAppReturn<this, testMethod, testPath>;
+                const errorResponse = await this.errorResponseFunction(req, e);
+
+                if (!(errorResponse instanceof LrResponse)) {
+                    throw new Error(`errorResponseFunction must return LrResponse, got typeof ${typeof errorResponse}`);
+                }
+
+                response = errorResponse;
             }
 
-            if (!((response as any) instanceof LrResponse)) {
-                throw new Error(`handler must return LrResponse, got typeof ${typeof response}`);
+            if (this.addResponseHeaders) {
+                const headers = await this.addResponseHeaders(req, response);
+                response = response.headers(headers);
+            }
+
+            if (this.addResponseCookies) {
+                const cookies = await this.addResponseCookies(req, response);
+                response = response.cookies(cookies);
             }
 
             return response as lrAppReturn<this, testMethod, testPath>;
-        } catch (e) {
-            try {
-                if (this.errorResponseFunction) {
-                    const newResponse = await this.errorResponseFunction(req, e);
 
-                    if (!(newResponse instanceof LrResponse)) {
-                        throw new Error(`errorResponseFunction must return LrResponse, got typeof ${typeof newResponse}`);
-                    }
-
-                    return newResponse as any;
-                } else {
-                    return this.errorResponse;
-                }
-            } catch (e2) {
-                console.warn('[lfm-router] Error while executing errorResponseFunction', e2);
-                return this.errorResponse;
-            }
+        } catch (e2) {
+            console.warn('[lfm-router] Unhandled error', e2);
+            return this.errorResponse as lrAppReturn<this, testMethod, testPath>;
         }
     }
 };
