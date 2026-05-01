@@ -731,7 +731,7 @@ class LrApp<
 
             if (this.addResponseCookies) {
                 const cookies = await this.addResponseCookies(req, response);
-                response = response.cookies(cookies);
+                response = response.cookies(cookies) as LrResponse<lrResponseObject>;
             }
 
             return response as lrAppReturn<this, testMethod, testPath>;
