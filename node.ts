@@ -1,10 +1,146 @@
+const MAX_SIZE = 90 * 1024 * 1024; // 90 MB
+const MAX_FILES = 10;
+const MAX_FIELDS = 100;
+
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { lrRequest, LrResponse, lrResponseObject } from ".";
 import type { httpMethod } from "./types";
 
+import Busboy from 'busboy';
+import querystring from 'querystring';
+
 type generalRequest = lrRequest<httpMethod, `/${string}`>;
 
-export function transformNodeRequest(nodeReq: IncomingMessage): generalRequest {
+function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
+    let contentType = nodeReq.headers['content-type'];
+    if (contentType && Array.isArray(contentType)) {
+        contentType = contentType[0];
+    }
+    if (!contentType) contentType = undefined;
+    if (contentType) {
+        contentType = contentType
+            .split(';')[0]!
+            .toLowerCase()
+            .trim();
+    }
+
+    if (contentType && contentType === "application/json") {
+        return new Promise((resolve, reject) => {
+            let body = "";
+            let size = 0;
+            nodeReq.on("data", (chunk: Buffer) => {
+                size += chunk.length;
+                if (size > MAX_SIZE) {
+                    nodeReq.destroy();
+                    return reject(new Error("Body too large"));
+                }
+
+                body += chunk.toString();
+            });
+            nodeReq.on("end", () => {
+                if (!body) {
+                    return reject(new Error("No body"));
+                }
+                try {
+                    resolve(JSON.parse(body));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+
+    if (contentType && contentType === "application/x-www-form-urlencoded") {
+        return new Promise((resolve, reject) => {
+            let body = "";
+            let size = 0;
+            nodeReq.on("data", (chunk: Buffer) => {
+                size += chunk.length;
+                if (size > MAX_SIZE) {
+                    nodeReq.destroy();
+                    return reject(new Error("Body too large"));
+                }
+
+                body += chunk.toString();
+            });
+            nodeReq.on("end", () => {
+                try {
+                    resolve(querystring.parse(body));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+
+    if (contentType && contentType == "multipart/form-data") {
+        return new Promise((resolve, reject) => {
+            let total = 0;
+
+            nodeReq.on("data", (chunk: Buffer) => {
+                total += chunk.length;
+
+                if (total > MAX_SIZE) {
+                    nodeReq.unpipe();        // stop piping to busboy
+                    nodeReq.destroy();       // abort connection
+                    return reject(new Error("Body too large"));
+                }
+            });
+
+            const busboy = Busboy({
+                headers: nodeReq.headers,
+                limits: {
+                    fileSize: MAX_SIZE,
+                    fields: MAX_FIELDS,
+                    files: MAX_FILES
+                }
+            });
+
+            let fields: Record<string, string> = {};
+            let files: Record<string, {
+                field: string;
+                name: string;
+                mimeType: string;
+                buffer: Buffer;
+            }[]> = {};
+
+            busboy.on("field", (name, val) => {
+                fields[name] = val;
+            });
+
+            busboy.on("file", (name, file, info) => {
+                const chunks: Buffer[] = [];
+                file.on("data", d => chunks.push(d));
+                file.on("end", () => {
+                    if (!files[name]) files[name] = [];
+
+                    files[name].push({
+                        field: name,
+                        name: info.filename,
+                        mimeType: info.mimeType,
+                        buffer: Buffer.concat(chunks),
+                    });
+                });
+            });
+
+            busboy.on("finish", () => {
+                resolve({ fields, files });
+            });
+
+            busboy.on("error", reject);
+
+            nodeReq.pipe(busboy);
+        });
+    }
+
+    return Promise.resolve(null);
+}
+
+function parseCookies(nodeReq: IncomingMessage): Record<string, string> {
+    // todo
+}
+
+export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<generalRequest> {
     let reqUrl = nodeReq.url;
     if (!reqUrl) {
         throw new Error('No url');
@@ -67,16 +203,20 @@ export function transformNodeRequest(nodeReq: IncomingMessage): generalRequest {
         }
     }
 
+    const body = await parseBody(nodeReq);
+
+    const cookies = parseCookies(nodeReq);
+
     const req: generalRequest = {
         method: nodeReq.method as httpMethod,
         path: path as `/${string}`,
         params: null,
         query,
-        // todo: body
+        body,
         data: {},
         ip: nodeReq.socket.remoteAddress as string,
-        headers
-        // todo: cookies
+        headers,
+        cookies
     };
 
     return req;

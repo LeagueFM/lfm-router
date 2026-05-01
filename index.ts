@@ -746,7 +746,7 @@ class LrApp<
     }
 
     async nodeExecute(nodeReq: IncomingMessage, nodeRes: ServerResponse): Promise<void> {
-        const req = transformNodeRequest(nodeReq);
+        const req = await transformNodeRequest(nodeReq);
 
         const response = await this.execute(req);
 
