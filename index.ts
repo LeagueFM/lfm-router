@@ -2,7 +2,7 @@ export type { lrResponseObject } from "./response";
 export { LrResponse, lrResponse } from "./response";
 
 import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods, recursiveSimplify, simplify } from "./types";
-import type { lrResponseObject, responseCookieOptions } from "./response";
+import type { lrResponseObject, responseCookieOptions, responseWithCookies, responseWithHeaders } from "./response";
 import { LrResponse } from "./response";
 
 // import type { z } from 'zod';
@@ -647,13 +647,19 @@ type noHandlerResponseFunction =
         => LrResponse<lrResponseObject> | Promise<LrResponse<lrResponseObject>>;
 
 type generalAddResponseHeaders =
-    (req: lrRequest<httpMethod, `/${string}`>, res: LrResponse<lrResponseObject>) => Record<string, string>;
+    (req: lrRequest<httpMethod, `/${string}`>, res: LrResponse<lrResponseObject>) => Record<string, string> | Promise<Record<string, string>>;
 
 type generalAddResponseCookies =
     (req: lrRequest<httpMethod, `/${string}`>, res: LrResponse<lrResponseObject>) =>
         Record<
             string,
             { value: string; } & Partial<responseCookieOptions>
+        >
+        | Promise<
+            Record<
+                string,
+                { value: string; } & Partial<responseCookieOptions>
+            >
         >;
 
 class LrApp<
@@ -721,6 +727,48 @@ class LrApp<
     }
 };
 
+type responseHeadersWrapper<
+    addResponseHeaders extends generalAddResponseHeaders | undefined,
+    response extends lrResponseObject
+> =
+    addResponseHeaders extends (req: any, res: any) => infer responseHeaders
+    ? (
+        Awaited<responseHeaders> extends Record<string, string>
+        ? responseWithHeaders<response, Awaited<responseHeaders>>
+        : response
+    )
+    : response;
+
+type responseCookiesWrapper<
+    addResponseCookies extends generalAddResponseCookies | undefined,
+    response extends lrResponseObject
+> =
+    addResponseCookies extends (req: any, res: any) => infer responseCookies
+    ? (
+        Awaited<responseCookies> extends Record<
+            string,
+            { value: string; } & Partial<responseCookieOptions>
+        >
+        ? responseWithCookies<response, Awaited<responseCookies>>
+        : response
+    )
+    : response;
+
+type responseWrapper<
+    addResponseHeaders extends generalAddResponseHeaders | undefined,
+    addResponseCookies extends generalAddResponseCookies | undefined,
+    response extends LrResponse<lrResponseObject>
+> =
+    response extends LrResponse<infer responseObject>
+    ? LrResponse<
+        responseHeadersWrapper<addResponseHeaders,
+            responseCookiesWrapper<addResponseCookies,
+                responseObject
+            >
+        >
+    >
+    : never;
+
 export type lrAppReturn<
     app extends LrApp<
         '' | `/${string}`,
@@ -734,18 +782,35 @@ export type lrAppReturn<
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
-    Exclude<lrRouterReturn<app['router'], testMethod, testPath>, typeof lrNext>
-    | (
-        app['errorResponseFunction'] extends (...args: any[]) => infer returnErrorResponseFunction
-        ? Awaited<returnErrorResponseFunction>
-        : never
-    )
-    | app['errorResponse']
-    | (
-        canRouterCallNext<app['router']['pathPrefix'], app['router']['handlers'], testMethod, testPath> extends true
-        ? Awaited<ReturnType<app['noHandlerResponse']>>
-        : never
-    );
+    app extends LrApp<
+        infer pathPrefix,
+        infer handlers,
+        infer errorResponse,
+        infer noHandlerResponse,
+        infer errorResponseFunction,
+        infer addResponseHeaders,
+        infer addResponseCookies
+    > ?
+    (
+        | responseWrapper<addResponseHeaders, addResponseCookies,
+            Exclude<lrRouterReturn<LrRouter<pathPrefix, handlers>, testMethod, testPath>, typeof lrNext>
+        >
+        | responseWrapper<addResponseHeaders, addResponseCookies, (
+            errorResponseFunction extends (...args: any[]) => infer returnErrorResponseFunction
+            ? (
+                Awaited<returnErrorResponseFunction> extends LrResponse<lrResponseObject>
+                ? Awaited<returnErrorResponseFunction>
+                : never
+            )
+            : never
+        )>
+        | responseWrapper<addResponseHeaders, addResponseCookies, (
+            canRouterCallNext<pathPrefix, handlers, testMethod, testPath> extends true
+            ? Awaited<ReturnType<noHandlerResponse>>
+            : never
+        )>
+        | errorResponse
+    ) : never;
 
 export type lrAppRequirements<
     app extends LrApp<
@@ -778,9 +843,9 @@ export function lrApp<
         handlers,
         options['errorResponse'],
         options['noHandlerResponse'],
-        options['errorResponseFunction'] extends unknown ? undefined : options['errorResponseFunction'],
-        options['addResponseHeaders'] extends unknown ? undefined : options['addResponseHeaders'],
-        options['addResponseCookies'] extends unknown ? undefined : options['addResponseCookies']
+        unknown extends options['errorResponseFunction'] ? undefined : options['errorResponseFunction'],
+        unknown extends options['addResponseHeaders'] ? undefined : options['addResponseHeaders'],
+        unknown extends options['addResponseCookies'] ? undefined : options['addResponseCookies']
     > {
     return new LrApp(
         router,
