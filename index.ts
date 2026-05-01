@@ -1,13 +1,16 @@
 export type { lrResponseObject } from "./response";
 export { LrResponse, lrResponse } from "./response";
 
+import { LrResponse } from "./response";
+import { sendNodeResponse, transformNodeRequest } from "./node";
+
 import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods, recursiveSimplify, simplify } from "./types";
 import type { lrResponseObject, responseCookieOptions, responseWithCookies, responseWithHeaders } from "./response";
-import { LrResponse } from "./response";
 
 // import type { z } from 'zod';
 // todo: only type import and dev dep
 import { z } from 'zod';
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 // typescript sometimes converts the Symbol('lrNext') to symbol, so we just convert it to a special object
 export const lrNext = Symbol('lrNext') as unknown as 'lrNext' & { __lrNext: symbol };
@@ -30,7 +33,7 @@ type afterParseRequest<
     cookies: Record<string, string>;
 };
 
-type lrRequest<
+export type lrRequest<
     method extends httpMethod,
     path extends `/${string}`,
 > = {
@@ -740,6 +743,14 @@ class LrApp<
             console.warn('[lfm-router] Unhandled error', e2);
             return this.errorResponse as lrAppReturn<this, testMethod, testPath>;
         }
+    }
+
+    async nodeExecute(nodeReq: IncomingMessage, nodeRes: ServerResponse): Promise<void> {
+        const req = transformNodeRequest(nodeReq);
+
+        const response = await this.execute(req);
+
+        sendNodeResponse(nodeRes, response);
     }
 };
 
