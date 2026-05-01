@@ -646,28 +646,23 @@ type noHandlerResponseFunction =
     (req: lrRequest<httpMethod, `/${string}`>)
         => LrResponse<lrResponseObject> | Promise<LrResponse<lrResponseObject>>;
 
-type generalResponseModifier = (response: LrResponse<lrResponseObject>, req: lrRequest<httpMethod, `/${string}`>) => LrResponse<lrResponseObject>;
-
 class LrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
     errorResponse extends LrResponse<lrResponseObject>,
     noHandlerResponse extends noHandlerResponseFunction,
-    errorResponseFunction extends generalErrorResponseFunction | undefined,
-    responseModifier extends generalResponseModifier | undefined
+    errorResponseFunction extends generalErrorResponseFunction | undefined
 > {
     router: LrRouter<pathPrefix, handlers>;
     errorResponse: errorResponse;
     errorResponseFunction: errorResponseFunction;
     noHandlerResponse: noHandlerResponse;
-    responseModifier: responseModifier;
 
-    constructor(router: LrRouter<pathPrefix, handlers>, errorResponse: errorResponse, noHandlerResponse: noHandlerResponse, errorResponseFunction: errorResponseFunction, responseModifier: responseModifier) {
+    constructor(router: LrRouter<pathPrefix, handlers>, errorResponse: errorResponse, noHandlerResponse: noHandlerResponse, errorResponseFunction: errorResponseFunction) {
         this.router = router;
         this.errorResponse = errorResponse;
         this.errorResponseFunction = errorResponseFunction;
         this.noHandlerResponse = noHandlerResponse;
-        this.responseModifier = responseModifier;
     }
 
     async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath>): Promise<lrAppReturn<this, testMethod, testPath>> {
@@ -711,7 +706,7 @@ class LrApp<
 };
 
 export type lrAppReturn<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseObject>, noHandlerResponseFunction, generalErrorResponseFunction | undefined, generalResponseModifier | undefined>,
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseObject>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -729,7 +724,7 @@ export type lrAppReturn<
     );
 
 export type lrAppRequirements<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseObject>, noHandlerResponseFunction, generalErrorResponseFunction | undefined, generalResponseModifier | undefined>,
+    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseObject>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -738,29 +733,10 @@ export type lrAppRequirements<
 export function lrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
-    options extends {
-        errorResponse: LrResponse<lrResponseObject>;
-        noHandlerResponse: noHandlerResponseFunction;
-        errorResponseFunction?: generalErrorResponseFunction;
-        responseModifier?: generalResponseModifier;
-    }
->(
-    router: LrRouter<pathPrefix, handlers>,
-    options: options
-):
-    LrApp<
-        pathPrefix,
-        handlers,
-        options['errorResponse'],
-        options['noHandlerResponse'],
-        options['errorResponseFunction'] extends unknown ? undefined : options['errorResponseFunction'],
-        options['responseModifier'] extends unknown ? undefined : options['responseModifier']
-    > {
-    return new LrApp(
-        router,
-        options.errorResponse,
-        options.noHandlerResponse,
-        options.errorResponseFunction as any,
-        options.responseModifier as any
-    );
+    errorResponse extends LrResponse<lrResponseObject>,
+    noHandlerResponse extends noHandlerResponseFunction,
+    errorResponseFunction extends generalErrorResponseFunction | undefined = undefined,
+>(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse, errorResponseFunction?: errorResponseFunction, noHandlerResponse: noHandlerResponse }):
+    LrApp<pathPrefix, handlers, errorResponse, noHandlerResponse, errorResponseFunction> {
+    return new LrApp(router, options.errorResponse, options.noHandlerResponse, options.errorResponseFunction as errorResponseFunction);
 }
