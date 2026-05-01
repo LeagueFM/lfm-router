@@ -137,7 +137,28 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
 }
 
 function parseCookies(nodeReq: IncomingMessage): Record<string, string> {
-    // todo
+    let cookieHeader = nodeReq.headers['cookie'];
+    if (cookieHeader && Array.isArray(cookieHeader)) {
+        cookieHeader = cookieHeader[0];
+    }
+    if (!cookieHeader) {
+        return {};
+    };
+
+    cookieHeader = cookieHeader.trim();
+
+    const parts = cookieHeader.split(';');
+    let cookies: Record<string, string> = {};
+
+    for (const part of parts) {
+        const [name, ...values] = part.trim().split('=');
+        if (!name || values.length === 0) continue;
+        if (name === '__proto__') continue;
+
+        cookies[name] = values.join('=');
+    }
+
+    return cookies;
 }
 
 export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<generalRequest> {
