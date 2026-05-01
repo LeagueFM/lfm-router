@@ -53,6 +53,39 @@ type responseCookie = {
     options: responseCookieOptions;
 };
 
+export type responseWithHeaders<response extends lrResponseObject, headers extends Record<string, string>> =
+    simplify<
+        Omit<response, 'headers'>
+        & {
+            headers: simplify<Omit<response['headers'], keyof headers> & headers>;
+        }
+    >;
+
+export type responseWithCookies<
+    response extends lrResponseObject,
+    cookies extends Record<
+        string,
+        { value: string } & Partial<responseCookieOptions>
+    >
+> =
+    simplify<
+        Omit<response, 'cookies'>
+        & {
+            cookies: simplify<
+                Omit<response['cookies'], keyof cookies>
+                & {
+                    [K in keyof cookies]: {
+                        value: cookies[K]['value'];
+                        options: simplify<
+                            Omit<Omit<cookies[K], 'value'>, Exclude<keyof Omit<cookies[K], 'value'>, keyof responseCookieOptions>>
+                            & Omit<typeof defaultResponseCookieOptions, keyof Omit<cookies[K], 'value'>>
+                        >;
+                    }
+                }
+            >;
+        }
+    >;
+
 export type lrResponseObject = {
     status: number;
     statusMessage: string;
@@ -110,14 +143,7 @@ export class LrResponse<response extends lrResponseObject> {
     }
 
     headers<headers extends Record<string, string>>(headers: headers):
-        LrResponse<
-            simplify<
-                Omit<response, 'headers'>
-                & {
-                    headers: simplify<Omit<response['headers'], keyof headers> & headers>;
-                }
-            >
-        > {
+        LrResponse<responseWithHeaders<response, headers>> {
         return new LrResponse({
             ...this.response,
             headers: {
@@ -266,6 +292,34 @@ export class LrResponse<response extends lrResponseObject> {
                         ...options,
                     } : defaultResponseCookieOptions
                 },
+            }
+        } as any);
+    }
+
+    cookies<
+        cookies extends Record<
+            string,
+            { value: string } & Partial<responseCookieOptions>
+        >
+    >(cookies: cookies):
+        LrResponse<responseWithCookies<response, cookies>> {
+        let newCookies = {} as Record<string, responseCookie>;
+
+        for (const [name, { value, ...options }] of Object.entries(cookies)) {
+            newCookies[name] = {
+                value,
+                options: {
+                    ...defaultResponseCookieOptions,
+                    ...options,
+                }
+            };
+        }
+
+        return new LrResponse({
+            ...this.response,
+            cookies: {
+                ...this.response.cookies,
+                ...newCookies
             }
         } as any);
     }
