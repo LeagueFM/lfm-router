@@ -27,7 +27,7 @@ type responseBody = {
     body: string;
 };
 
-type responseCookieOptions = {
+export type responseCookieOptions = {
     httpOnly: boolean;
     secure: boolean;
     partitioned: boolean;

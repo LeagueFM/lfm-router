@@ -72,6 +72,12 @@ const app = lrApp(router, {
 
         return lrResponse().status(404).json({ success: false } as const);
     },
+    addResponseHeaders: (req, res) => ({
+        foo: 'bar'
+    } as const),
+    addResponseCookies: (req, res) => ({
+        foo: { value: 'bar' }
+    } as const)
 });
 
 type a = lrAppReturn<typeof app, 'GET', '/foo/hi'>;

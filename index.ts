@@ -2,7 +2,7 @@ export type { lrResponseObject } from "./response";
 export { LrResponse, lrResponse } from "./response";
 
 import type { httpMethod, matchRequest, pathDefinitionToType, pathDefinitionToParams, methodsDefinitionToMethods, recursiveSimplify, simplify } from "./types";
-import type { lrResponseObject } from "./response";
+import type { lrResponseObject, responseCookieOptions } from "./response";
 import { LrResponse } from "./response";
 
 // import type { z } from 'zod';
@@ -646,23 +646,39 @@ type noHandlerResponseFunction =
     (req: lrRequest<httpMethod, `/${string}`>)
         => LrResponse<lrResponseObject> | Promise<LrResponse<lrResponseObject>>;
 
+type generalAddResponseHeaders =
+    (req: lrRequest<httpMethod, `/${string}`>, res: LrResponse<lrResponseObject>) => Record<string, string>;
+
+type generalAddResponseCookies =
+    (req: lrRequest<httpMethod, `/${string}`>, res: LrResponse<lrResponseObject>) =>
+        Record<
+            string,
+            { value: string; } & Partial<responseCookieOptions>
+        >;
+
 class LrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
     errorResponse extends LrResponse<lrResponseObject>,
     noHandlerResponse extends noHandlerResponseFunction,
-    errorResponseFunction extends generalErrorResponseFunction | undefined
+    errorResponseFunction extends generalErrorResponseFunction | undefined,
+    addResponseHeaders extends generalAddResponseHeaders | undefined,
+    addResponseCookies extends generalAddResponseCookies | undefined
 > {
     router: LrRouter<pathPrefix, handlers>;
     errorResponse: errorResponse;
     errorResponseFunction: errorResponseFunction;
     noHandlerResponse: noHandlerResponse;
+    addResponseHeaders: addResponseHeaders;
+    addResponseCookies: addResponseCookies;
 
-    constructor(router: LrRouter<pathPrefix, handlers>, errorResponse: errorResponse, noHandlerResponse: noHandlerResponse, errorResponseFunction: errorResponseFunction) {
+    constructor(router: LrRouter<pathPrefix, handlers>, errorResponse: errorResponse, noHandlerResponse: noHandlerResponse, errorResponseFunction: errorResponseFunction, addResponseHeaders: addResponseHeaders, addResponseCookies: addResponseCookies) {
         this.router = router;
         this.errorResponse = errorResponse;
         this.errorResponseFunction = errorResponseFunction;
         this.noHandlerResponse = noHandlerResponse;
+        this.addResponseHeaders = addResponseHeaders;
+        this.addResponseCookies = addResponseCookies;
     }
 
     async execute<testMethod extends httpMethod, testPath extends `/${string}`>(req: lrRequest<testMethod, testPath>): Promise<lrAppReturn<this, testMethod, testPath>> {
@@ -706,7 +722,15 @@ class LrApp<
 };
 
 export type lrAppReturn<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseObject>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
+    app extends LrApp<
+        '' | `/${string}`,
+        generalHandlerOrRouter[],
+        LrResponse<lrResponseObject>,
+        noHandlerResponseFunction,
+        generalErrorResponseFunction | undefined,
+        generalAddResponseHeaders | undefined,
+        generalAddResponseCookies | undefined
+    >,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -724,7 +748,15 @@ export type lrAppReturn<
     );
 
 export type lrAppRequirements<
-    app extends LrApp<'' | `/${string}`, generalHandlerOrRouter[], LrResponse<lrResponseObject>, noHandlerResponseFunction, generalErrorResponseFunction | undefined>,
+    app extends LrApp<
+        '' | `/${string}`,
+        generalHandlerOrRouter[],
+        LrResponse<lrResponseObject>,
+        noHandlerResponseFunction,
+        generalErrorResponseFunction | undefined,
+        generalAddResponseHeaders | undefined,
+        generalAddResponseCookies | undefined
+    >,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -733,10 +765,29 @@ export type lrAppRequirements<
 export function lrApp<
     pathPrefix extends '' | `/${string}`,
     handlers extends generalHandlerOrRouter[],
-    errorResponse extends LrResponse<lrResponseObject>,
-    noHandlerResponse extends noHandlerResponseFunction,
-    errorResponseFunction extends generalErrorResponseFunction | undefined = undefined,
->(router: LrRouter<pathPrefix, handlers>, options: { errorResponse: errorResponse, errorResponseFunction?: errorResponseFunction, noHandlerResponse: noHandlerResponse }):
-    LrApp<pathPrefix, handlers, errorResponse, noHandlerResponse, errorResponseFunction> {
-    return new LrApp(router, options.errorResponse, options.noHandlerResponse, options.errorResponseFunction as errorResponseFunction);
+    options extends {
+        errorResponse: LrResponse<lrResponseObject>;
+        noHandlerResponse: noHandlerResponseFunction;
+        errorResponseFunction?: generalErrorResponseFunction;
+        addResponseHeaders?: generalAddResponseHeaders;
+        addResponseCookies?: generalAddResponseCookies;
+    }
+>(router: LrRouter<pathPrefix, handlers>, options: options):
+    LrApp<
+        pathPrefix,
+        handlers,
+        options['errorResponse'],
+        options['noHandlerResponse'],
+        options['errorResponseFunction'] extends unknown ? undefined : options['errorResponseFunction'],
+        options['addResponseHeaders'] extends unknown ? undefined : options['addResponseHeaders'],
+        options['addResponseCookies'] extends unknown ? undefined : options['addResponseCookies']
+    > {
+    return new LrApp(
+        router,
+        options.errorResponse,
+        options.noHandlerResponse,
+        options.errorResponseFunction as any,
+        options.addResponseHeaders as any,
+        options.addResponseCookies as any
+    );
 }
