@@ -171,10 +171,17 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
             }[]> = Object.create(null);
 
             busboy.on("field", (name, val) => {
+                if (PROTOTYPE_POLLUTION_KEYS.has(name)) return;
+
                 fields[name] = val;
             });
 
             busboy.on("file", (name, file, info) => {
+                if (PROTOTYPE_POLLUTION_KEYS.has(name)) {
+                    file.resume();
+                    return;
+                }
+
                 const chunks: Buffer[] = [];
                 file.on("data", d => chunks.push(d));
                 file.on("end", () => {
@@ -244,6 +251,10 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
     let reqUrl = nodeReq.url;
     if (!reqUrl) {
         throw new Error('No url');
+    }
+
+    if (reqUrl.startsWith('//')) {
+        throw new Error('Invalid url');
     }
 
     if (!reqUrl.startsWith('/')) {
