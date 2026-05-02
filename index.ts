@@ -12,7 +12,7 @@ import type { lrResponseObject, responseCookieOptions, responseWithCookies, resp
 // import type { z } from 'zod';
 // todo: only type import and dev dep
 import { z } from 'zod';
-import type { IncomingMessage, ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 // typescript sometimes converts the Symbol('lrNext') to symbol, so we just convert it to a special object
 export const lrNext = Symbol('lrNext') as unknown as 'lrNext' & { __lrNext: symbol };
@@ -753,6 +753,20 @@ class LrApp<
         const response = await this.execute(req);
 
         await sendNodeResponse(nodeRes, response);
+    }
+
+    createServer(): Server {
+        const server = createServer(
+            {
+                keepAlive: true,
+                requestTimeout: 1000 * 20
+            },
+            async (nodeReq, nodeRes) => {
+                await this.nodeExecute(nodeReq, nodeRes);
+            }
+        );
+
+        return server;
     }
 };
 
