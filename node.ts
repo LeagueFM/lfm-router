@@ -244,7 +244,27 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
 }
 
 function cookiesToHeader(cookies: lrResponseObject['cookies']): string[] {
-    // todo
+    return Object.entries(cookies).map(([name, cookie]) => {
+        const { value, options } = cookie;
+
+        const encodedValue = encodeURIComponent(value);
+
+        const parts: string[] = [`${name}=${encodedValue}`];
+
+        if (options.path) parts.push(`Path=${options.path}`);
+        if (options.domain) parts.push(`Domain=${options.domain}`);
+        if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`);
+
+        if (options.httpOnly) parts.push('HttpOnly');
+        if (options.secure) parts.push('Secure');
+        if (options.partitioned) parts.push('Partitioned');
+
+        if (options.sameSite) {
+            parts.push(`SameSite=${options.sameSite.charAt(0).toUpperCase() + options.sameSite.slice(1)}`);
+        }
+
+        return parts.join('; ');
+    });
 }
 
 export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrResponse<lrResponseObject>): Promise<void> {
