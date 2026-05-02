@@ -272,8 +272,6 @@ function cookiesToHeader(cookies: lrResponseObject['cookies']): string[] {
 export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrResponse<lrResponseObject>): Promise<void> {
     const response = responseClass.response;
 
-    nodeRes.writeHead(response.status, response.statusMessage);
-
     let headers: Record<string, string | string[]> = Object.create(null);
 
     if (Object.keys(response.cookies).length > 0) {
@@ -289,6 +287,8 @@ export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrRespo
     for (const [key, value] of Object.entries(headers)) {
         nodeRes.setHeader(key, value);
     }
+
+    nodeRes.writeHead(response.status, response.statusMessage);
 
     return new Promise((resolve, reject) => {
         if (response.body.type === 'json') {
