@@ -142,6 +142,102 @@ function rawHttpRequest(server: Server, requestText: string): Promise<TestRespon
     });
 }
 
+function rawIdleRequest(server: Server, requestText: string): Promise<{ closedAfterMs: number; responseText: string; }> {
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+        throw new Error('Test server is not listening on a TCP port');
+    }
+
+    return new Promise((resolve, reject) => {
+        const startedAt = Date.now();
+        const socket = connect(address.port, '127.0.0.1');
+        let responseText = '';
+
+        socket.setEncoding('utf8');
+        socket.on('connect', () => {
+            socket.write(requestText);
+        });
+        socket.on('data', chunk => {
+            responseText += chunk;
+        });
+        socket.on('error', reject);
+        socket.on('close', () => {
+            resolve({
+                closedAfterMs: Date.now() - startedAt,
+                responseText,
+            });
+        });
+    });
+}
+
+function largeJsonRequest(server: Server, path: string, chunkCount: number): Promise<{
+    status?: number;
+    body: string;
+    errorCode?: string;
+    bytesAttempted: number;
+}> {
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+        throw new Error('Test server is not listening on a TCP port');
+    }
+
+    return new Promise(resolve => {
+        const chunk = 'a'.repeat(1024 * 1024);
+        let bytesAttempted = '{"data":"'.length;
+        let settled = false;
+
+        const finish = (result: { status?: number; body: string; errorCode?: string; }) => {
+            if (settled) return;
+            settled = true;
+            resolve({ ...result, bytesAttempted });
+        };
+
+        const req = request({
+            port: address.port,
+            method: 'POST',
+            path,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        }, res => {
+            let body = '';
+
+            res.setEncoding('utf8');
+            res.on('data', data => {
+                body += data;
+            });
+            res.on('end', () => {
+                finish({ status: res.statusCode, body });
+            });
+        });
+
+        req.on('error', (error: NodeJS.ErrnoException) => {
+            finish({ body: '', errorCode: error.code });
+        });
+
+        req.write('{"data":"');
+
+        const writeChunks = async () => {
+            try {
+                for (let i = 0; i < chunkCount && !settled; i++) {
+                    bytesAttempted += chunk.length;
+
+                    if (!req.write(chunk)) {
+                        await new Promise<void>(resolveDrain => req.once('drain', resolveDrain));
+                    }
+                }
+
+                bytesAttempted += '"}'.length;
+                req.end('"}');
+            } catch (error) {
+                finish({ body: '', errorCode: (error as NodeJS.ErrnoException).code });
+            }
+        };
+
+        void writeChunks();
+    });
+}
+
 afterAll(async () => {
     await Promise.all(servers.map(server => new Promise<void>(resolve => {
         server.close(() => resolve());
@@ -1666,5 +1762,171 @@ describe('more coverage: response status and redirect edge cases', () => {
         expect(response.status).toBe(500);
         expect(response.headers.location).toBeUndefined();
         expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+});
+
+describe('stress and limits', () => {
+    test('handles many concurrent small requests without cross-request state leakage', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/parallel/:id', null, req => {
+            const params = req.params as Record<string, string>;
+            (req.data as Record<string, string>).id = params.id ?? '';
+
+            return lrResponse().json({
+                id: (req.data as Record<string, string>).id,
+            } as const);
+        }));
+
+        const responses = await Promise.all(Array.from({ length: 40 }, async (_, index) => {
+            return httpRequest(server, {
+                path: `/parallel/${index}`,
+            });
+        }));
+
+        expect(responses.length).toBe(40);
+
+        for (let i = 0; i < responses.length; i++) {
+            expect(responses[i]!.status).toBe(200);
+            expect(JSON.parse(responses[i]!.body)).toEqual({ id: String(i) });
+        }
+    });
+
+    test('allows a delayed handler to complete normally', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/slow-handler', null, async () => {
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            return lrResponse().json({ ok: true } as const);
+        }));
+
+        const startedAt = Date.now();
+        const response = await httpRequest(server, {
+            path: '/slow-handler',
+        });
+
+        expect(Date.now() - startedAt).toBeGreaterThanOrEqual(100);
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ ok: true });
+    });
+
+    test('closes slow incomplete requests using the server timeout', async () => {
+        let handlerReached = false;
+        const server = await createTestServer(lrHandler(['POST'], '/slow-body', null, () => {
+            handlerReached = true;
+            return lrResponse().json({ reached: true } as const);
+        }));
+
+        server.setTimeout(100);
+
+        const result = await rawIdleRequest(server, [
+            'POST /slow-body HTTP/1.1',
+            'Host: localhost',
+            'Content-Type: application/json',
+            'Content-Length: 20',
+            'Connection: close',
+            '',
+            '{"not-finished":',
+        ].join('\r\n'));
+
+        expect(result.closedAfterMs).toBeLessThan(5000);
+        expect(handlerReached).toBe(false);
+    });
+
+    test('rejects oversized JSON bodies before the handler runs', async () => {
+        let handlerReached = false;
+        const server = await createTestServer(lrHandler(['POST'], '/oversized-json', null, () => {
+            handlerReached = true;
+            return lrResponse().json({ reached: true } as const);
+        }));
+
+        const response = await largeJsonRequest(server, '/oversized-json', 92);
+
+        expect(response.bytesAttempted).toBeGreaterThan(90 * 1024 * 1024);
+        expect(handlerReached).toBe(false);
+
+        if (response.status !== undefined) {
+            expect(response.status).toBe(500);
+            expect(JSON.parse(response.body)).toEqual({ ok: false });
+        } else {
+            expect(response.errorCode).toBeDefined();
+        }
+    });
+
+    test('parses a large multipart file that remains below configured limits', async () => {
+        const boundary = 'lfm-router-large-file-boundary';
+        const largeFile = 'x'.repeat(2 * 1024 * 1024);
+        const server = await createTestServer(lrHandler(['POST'], '/large-file', null, req => {
+            const body = req.body as {
+                files: Record<string, { buffer: Buffer; name: string; mimeType: string; }[]>;
+            };
+
+            return lrResponse().json({
+                name: body.files.upload?.[0]?.name,
+                mimeType: body.files.upload?.[0]?.mimeType,
+                size: body.files.upload?.[0]?.buffer.length,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            method: 'POST',
+            path: '/large-file',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            },
+            body: multipartBody(boundary, [
+                { name: 'upload', filename: 'large.txt', contentType: 'text/plain', value: largeFile },
+            ]),
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({
+            name: 'large.txt',
+            mimeType: 'text/plain',
+            size: largeFile.length,
+        });
+    });
+
+    test('enforces multipart field and file count limits', async () => {
+        const boundary = 'lfm-router-count-limit-boundary';
+        const parts = [
+            ...Array.from({ length: 105 }, (_, index) => ({
+                name: `field${index}`,
+                value: String(index),
+            })),
+            ...Array.from({ length: 12 }, (_, index) => ({
+                name: 'upload',
+                filename: `file${index}.txt`,
+                contentType: 'text/plain',
+                value: `file-${index}`,
+            })),
+        ];
+        const server = await createTestServer(lrHandler(['POST'], '/multipart-counts', null, req => {
+            const body = req.body as {
+                fields: Record<string, string>;
+                files: Record<string, unknown[]>;
+            };
+
+            return lrResponse().json({
+                fieldCount: Object.keys(body.fields).length,
+                hasField99: body.fields.field99,
+                hasField100: body.fields.field100 ?? null,
+                fileCount: body.files.upload?.length ?? 0,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            method: 'POST',
+            path: '/multipart-counts',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            },
+            body: multipartBody(boundary, parts),
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({
+            fieldCount: 100,
+            hasField99: '99',
+            hasField100: null,
+            fileCount: 10,
+        });
     });
 });
