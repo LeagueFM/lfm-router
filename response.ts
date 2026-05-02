@@ -20,10 +20,10 @@ const defaultStatusMessages = {
 } as const;
 
 type responseBody = {
-    toStringifyBody: object;
+    jsonBody: object;
     body: null;
 } | {
-    toStringifyBody: null;
+    jsonBody: null;
     body: string;
 };
 
@@ -159,7 +159,7 @@ export class LrResponse<response extends lrResponseObject> {
                 Omit<response, 'headers' | 'body'>
                 & {
                     headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'application/json' }>;
-                    body: { toStringifyBody: data; body: null }
+                    body: { jsonBody: data; body: null }
                 }
             >
         > {
@@ -170,7 +170,7 @@ export class LrResponse<response extends lrResponseObject> {
                 'Content-Type': 'application/json',
             },
             body: {
-                toStringifyBody: data,
+                jsonBody: data,
                 body: null
             }
         } as any);
@@ -182,7 +182,7 @@ export class LrResponse<response extends lrResponseObject> {
                 Omit<response, 'headers' | 'body'>
                 & {
                     headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/plain' }>;
-                    body: { toStringifyBody: null; body: text }
+                    body: { jsonBody: null; body: text }
                 }
             >
         > {
@@ -193,7 +193,7 @@ export class LrResponse<response extends lrResponseObject> {
                 'Content-Type': 'text/plain',
             },
             body: {
-                toStringifyBody: null,
+                jsonBody: null,
                 body: text
             }
         } as any);
@@ -206,7 +206,7 @@ export class LrResponse<response extends lrResponseObject> {
                     status: 307;
                     statusMessage: (typeof defaultStatusMessages)[307];
                     headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain' }>;
-                    body: { toStringifyBody: null; body: '' }
+                    body: { jsonBody: null; body: '' }
                 } &
                 Omit<response, 'status' | 'statusMessage' | 'headers' | 'body'>
             >
@@ -221,7 +221,7 @@ export class LrResponse<response extends lrResponseObject> {
                 'Content-Type': 'text/plain',
             },
             body: {
-                toStringifyBody: null,
+                jsonBody: null,
                 body: ''
             }
         } as any);
@@ -234,7 +234,7 @@ export class LrResponse<response extends lrResponseObject> {
                     status: 308;
                     statusMessage: (typeof defaultStatusMessages)[308];
                     headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain' }>;
-                    body: { toStringifyBody: null; body: '' }
+                    body: { jsonBody: null; body: '' }
                 } &
                 Omit<response, 'status' | 'statusMessage' | 'headers' | 'body'>
             >
@@ -249,7 +249,7 @@ export class LrResponse<response extends lrResponseObject> {
                 'Content-Type': 'text/plain',
             },
             body: {
-                toStringifyBody: null,
+                jsonBody: null,
                 body: ''
             }
         } as any);
@@ -333,7 +333,7 @@ export function lrResponse() {
             'Content-Type': 'text/html',
         },
         body: {
-            toStringifyBody: null,
+            jsonBody: null,
             body: ''
         },
         cookies: {}
