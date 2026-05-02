@@ -164,6 +164,9 @@ export class LrHandler<
     callback: callback;
 
     constructor(methods: methods, path: path, validations: validations, callback: callback) {
+        // to assert path is valid
+        pathToParts(path);
+
         this.methods = methods;
         this.path = path;
         this.validations = validations;
