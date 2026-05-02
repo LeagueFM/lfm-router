@@ -247,16 +247,12 @@ function cookiesToHeader(cookies: lrResponseObject['cookies']): string[] {
     // todo
 }
 
-export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrResponse<lrResponseObject>): void {
+export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrResponse<lrResponseObject>): Promise<void> {
     const response = responseClass.response;
 
     nodeRes.writeHead(response.status, response.statusMessage);
 
     let headers: Record<string, string | string[]> = {};
-
-    if (response.body.jsonBody !== null) {
-        headers['Content-Type'] = 'application/json';
-    }
 
     if (Object.keys(response.cookies).length > 0) {
         headers['Set-Cookie'] = cookiesToHeader(response.cookies);
@@ -268,7 +264,16 @@ export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrRespo
         headers[key] = value;
     }
 
-    // todo: body
-
-    nodeRes.end();
+    return new Promise((resolve, reject) => {
+        if (response.body.type === 'json') {
+            const stringified = JSON.stringify(response.body.body);
+            nodeRes.end(stringified, resolve);
+        } else if (response.body.type === 'text') {
+            nodeRes.end(response.body.body, resolve);
+        } else if (response.body.type === 'buffer') {
+            nodeRes.end(response.body.body, resolve);
+        } else {
+            nodeRes.end();
+        }
+    });
 }
