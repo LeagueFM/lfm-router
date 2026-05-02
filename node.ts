@@ -202,7 +202,7 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
     let query: Record<string, string> = Object.create(null);
 
     parsedUrl.searchParams.forEach((value, key) => {
-        if (key === '_proto__') {
+        if (key === '__proto__') {
             return;
         }
 
