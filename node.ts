@@ -1,3 +1,5 @@
+// © 2026 Oscar Knap - Alle rechten voorbehouden
+
 const MAX_SIZE = 90 * 1024 * 1024; // 90 MB
 const MAX_FILES = 10;
 const MAX_FIELDS = 100;

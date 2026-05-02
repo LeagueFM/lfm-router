@@ -1,3 +1,5 @@
+// © 2026 Oscar Knap - Alle rechten voorbehouden
+
 import type { simplify } from './types.ts';
 
 const defaultStatusMessages = {

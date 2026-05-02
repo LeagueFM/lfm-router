@@ -1,3 +1,5 @@
+// © 2026 Oscar Knap - Alle rechten voorbehouden
+
 export type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
 
 export type simplify<T> =

@@ -1,3 +1,5 @@
+// © 2026 Oscar Knap - Alle rechten voorbehouden
+
 export type { lrResponseObject } from "./response";
 export { LrResponse, lrResponse } from "./response";
 
