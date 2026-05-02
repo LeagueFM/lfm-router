@@ -1,3 +1,5 @@
+// © 2026 Oscar Knap - Alle rechten voorbehouden
+
 import type { generalValidations, lrHandlerCallback } from "./handler";
 import type { canRouterCallNext, httpMethod, lrRequest, matchRequest, recursiveSimplify, validationsToRequirements } from "./types";
 import type { lrResponseObject } from "./response";

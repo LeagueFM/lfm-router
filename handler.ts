@@ -1,3 +1,5 @@
+// © 2026 Oscar Knap - Alle rechten voorbehouden
+
 import type z from "zod";
 import type { LrResponse, lrResponseObject } from "./response";
 import type { afterParseRequest, httpMethod, lrRequest, matchRequest, methodsDefinitionToMethods, pathDefinitionToParams, pathDefinitionToType } from "./types";

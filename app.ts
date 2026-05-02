@@ -1,3 +1,5 @@
+// © 2026 Oscar Knap - Alle rechten voorbehouden
+
 import { LrResponse } from "./response";
 import { sendNodeResponse, transformNodeRequest } from "./node";
 import { lrNext } from "./handler";
