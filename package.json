@@ -3,6 +3,9 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "test": "bun test"
+  },
   "devDependencies": {
     "@types/busboy": "^1.5.4",
     "@types/node": "^25.6.0",

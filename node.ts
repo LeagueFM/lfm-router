@@ -15,6 +15,66 @@ import querystring from 'querystring';
 
 type generalRequest = lrRequest<httpMethod, `/${string}`>;
 
+const COOKIE_NAME_REGEX = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const COOKIE_VALUE_REGEX = /^[!#$%&'()*+\-./0-9:<=>?@A-Z[\]^_`a-z{|}~]*$/;
+const COOKIE_DOMAIN_REGEX = /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
+const PROTOTYPE_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function hasControlCharacters(value: string): boolean {
+    return /[\u0000-\u001F\u007F]/.test(value);
+}
+
+function decodeCookieValue(value: string): string | null {
+    try {
+        const decoded = decodeURIComponent(value);
+        return hasControlCharacters(decoded) ? null : decoded;
+    } catch {
+        return value;
+    }
+}
+
+function assertCookieName(name: string): void {
+    if (!COOKIE_NAME_REGEX.test(name)) {
+        throw new Error(`Invalid cookie name: ${name}`);
+    }
+}
+
+function assertCookieValue(value: string): void {
+    if (!COOKIE_VALUE_REGEX.test(value)) {
+        throw new Error('Invalid cookie value');
+    }
+}
+
+function assertCookiePath(path: string): void {
+    if (hasControlCharacters(path) || path.includes(';')) {
+        throw new Error(`Invalid cookie path: ${path}`);
+    }
+}
+
+function assertCookieDomain(domain: string): void {
+    if (domain && !COOKIE_DOMAIN_REGEX.test(domain)) {
+        throw new Error(`Invalid cookie domain: ${domain}`);
+    }
+}
+
+function assertCookieMaxAge(maxAge: number): void {
+    if (!Number.isSafeInteger(maxAge) || maxAge < 0) {
+        throw new Error(`Invalid cookie maxAge: ${maxAge}`);
+    }
+}
+
+function sanitizeRecord(input: Record<string, unknown>): Record<string, unknown> {
+    const output: Record<string, unknown> = Object.create(null);
+
+    for (const [key, value] of Object.entries(input)) {
+        if (PROTOTYPE_POLLUTION_KEYS.has(key)) continue;
+
+        output[key] = value;
+    }
+
+    return output;
+}
+
 function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
     let contentType = nodeReq.headers['content-type'];
     if (contentType && Array.isArray(contentType)) {
@@ -71,7 +131,7 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
             nodeReq.on("error", reject);
             nodeReq.on("end", () => {
                 try {
-                    resolve(querystring.parse(body));
+                    resolve(sanitizeRecord(querystring.parse(body)));
                 } catch (e) {
                     reject(e);
                 }
@@ -157,13 +217,24 @@ function parseCookies(nodeReq: IncomingMessage): Record<string, string> {
     let cookies: Record<string, string> = Object.create(null);
 
     for (const part of parts) {
-        const [name, ...values] = part.trim().split('=');
-        if (!name || values.length === 0) continue;
-        if (name === '__proto__') continue;
-        if (name === 'prototype') continue;
-        if (name === 'constructor') continue;
+        const cookiePart = part.trim();
+        const separatorIndex = cookiePart.indexOf('=');
+        if (separatorIndex <= 0) continue;
 
-        cookies[name] = values.join('=');
+        const name = cookiePart.slice(0, separatorIndex).trim();
+        if (!COOKIE_NAME_REGEX.test(name)) continue;
+        if (PROTOTYPE_POLLUTION_KEYS.has(name)) continue;
+
+        let value = cookiePart.slice(separatorIndex + 1).trim();
+        if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, value.length - 1);
+        }
+        if (!COOKIE_VALUE_REGEX.test(value)) continue;
+
+        const decodedValue = decodeCookieValue(value);
+        if (decodedValue === null) continue;
+
+        cookies[name] = decodedValue;
     }
 
     return cookies;
@@ -260,7 +331,25 @@ function cookiesToHeader(cookies: lrResponseObject['cookies']): string[] {
     return Object.entries(cookies).map(([name, cookie]) => {
         const { value, options } = cookie;
 
+        assertCookieName(name);
+        assertCookiePath(options.path);
+        assertCookieDomain(options.domain);
+        assertCookieMaxAge(options.maxAge);
+
+        if (options.sameSite === 'none' && !options.secure) {
+            throw new Error('Cookies with SameSite=None must also set Secure');
+        }
+
+        if (options.partitioned && !options.secure) {
+            throw new Error('Partitioned cookies must also set Secure');
+        }
+
+        if (hasControlCharacters(value)) {
+            throw new Error('Invalid cookie value');
+        }
+
         const encodedValue = encodeURIComponent(value);
+        assertCookieValue(encodedValue);
 
         const parts: string[] = [`${name}=${encodedValue}`];
 
