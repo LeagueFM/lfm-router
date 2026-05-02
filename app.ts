@@ -129,6 +129,17 @@ class LrApp<
             await sendNodeResponse(nodeRes, response);
         } catch (e) {
             console.warn('[lfm-router] Unhandled error in sendNodeResponse', e);
+
+            if (!nodeRes.headersSent) {
+                try {
+                    await sendNodeResponse(nodeRes, this.errorResponse);
+                } catch (fallbackError) {
+                    console.warn('[lfm-router] Unhandled error while sending fallback errorResponse', fallbackError);
+                    nodeRes.destroy();
+                }
+            } else if (!nodeRes.writableEnded) {
+                nodeRes.end();
+            }
         }
     }
 
