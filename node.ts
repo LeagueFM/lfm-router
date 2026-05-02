@@ -5,8 +5,8 @@ const MAX_FILES = 10;
 const MAX_FIELDS = 100;
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { lrRequest, LrResponse, lrResponseObject } from ".";
-import type { httpMethod } from "./types";
+import type { httpMethod, lrRequest } from "./types";
+import type { LrResponse, lrResponseObject } from "./response";
 
 import Busboy from 'busboy';
 import querystring from 'querystring';
