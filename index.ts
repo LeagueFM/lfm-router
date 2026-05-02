@@ -750,7 +750,7 @@ class LrApp<
 
         const response = await this.execute(req);
 
-        sendNodeResponse(nodeRes, response);
+        await sendNodeResponse(nodeRes, response);
     }
 };
 
