@@ -1374,3 +1374,297 @@ describe('security: body parsing', () => {
         });
     });
 });
+
+describe('more coverage: route matching internals and request state', () => {
+    test('exposes public match results for matching and non-matching routes', () => {
+        const router = lrRouter('', [
+            lrHandler(['GET'], '/users/:id', null, () => lrResponse()),
+            lrHandler(['POST'], '/users', null, () => lrResponse()),
+        ]);
+
+        const getMatch = router.match('GET', '/users/123') as any;
+        const postMatch = router.match('POST', '/users/123') as any;
+
+        expect(getMatch.matches.length).toBe(1);
+        expect(getMatch.matches[0].type).toBe('handler');
+        expect(postMatch.matches.length).toBe(0);
+    });
+
+    test('shares req.data across lrNext fallthrough handlers', async () => {
+        const server = await createTestServer([
+            lrHandler(['GET'], '/state', null, req => {
+                (req.data as Record<string, unknown>).user = 'oscar';
+                return lrNext;
+            }),
+            lrHandler(['GET'], '/state', null, req => {
+                return lrResponse().json({
+                    user: (req.data as Record<string, unknown>).user,
+                } as const);
+            }),
+        ]);
+
+        const response = await httpRequest(server, {
+            path: '/state',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ user: 'oscar' });
+    });
+
+    test('keeps query, headers, and cookies on direct app execution', async () => {
+        const app = lrApp(lrRouter('', [
+            lrHandler(['GET'], '/direct-context', null, (req: any) => {
+                return lrResponse().json({
+                    query: req.query.safe,
+                    header: req.headers['x-test'],
+                    cookie: req.cookies.session,
+                    ip: req.ip,
+                } as const);
+            }),
+        ]), {
+            errorResponse: lrResponse().status(500).json({ ok: false } as const),
+            noHandlerResponse: () => lrResponse().status(404).json({ ok: false } as const),
+        });
+
+        const response = await app.execute({
+            method: 'GET',
+            path: '/direct-context',
+            params: null,
+            query: { safe: 'yes' },
+            body: null,
+            data: Object.create(null),
+            ip: '203.0.113.10',
+            headers: { 'x-test': 'present' },
+            cookies: { session: 'abc' },
+        });
+        const lrResponseObject = response as any;
+
+        expect(lrResponseObject.response.status).toBe(200);
+        expect(lrResponseObject.response.body.body).toEqual({
+            query: 'yes',
+            header: 'present',
+            cookie: 'abc',
+            ip: '203.0.113.10',
+        });
+    });
+});
+
+describe('more coverage: URL and query edge cases', () => {
+    test('does not route absolute-form request targets to protected routes', async () => {
+        let handlerReached = false;
+        const server = await createTestServer(lrHandler(['GET'], '/admin', null, () => {
+            handlerReached = true;
+            return lrResponse().json({ reached: true } as const);
+        }));
+
+        const response = await rawHttpRequest(server, [
+            'GET http://localhost/admin HTTP/1.1',
+            'Host: localhost',
+            'Connection: close',
+            '',
+            '',
+        ].join('\r\n'));
+
+        expect(response.status).toBe(404);
+        expect(handlerReached).toBe(false);
+        expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+
+    test('decodes plus signs in query values as spaces', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/search', null, req => {
+            return lrResponse().json({
+                q: req.query.q,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/search?q=league+fm',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ q: 'league fm' });
+    });
+
+    test('keeps blank query keys as explicit data', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/blank-query', null, req => {
+            return lrResponse().json({
+                blank: req.query[''],
+                safe: req.query.safe,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/blank-query?=blank&safe=yes',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({
+            blank: 'blank',
+            safe: 'yes',
+        });
+    });
+
+    test('treats semicolons in query as part of the value, not as separators', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/query-semicolon', null, req => {
+            return lrResponse().json({
+                value: req.query.a,
+                b: req.query.b ?? null,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/query-semicolon?a=1;b=2',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({
+            value: '1;b=2',
+            b: null,
+        });
+    });
+});
+
+describe('more coverage: cookie edge cases', () => {
+    test('drops invalid request cookie names and raw invalid values', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/cookie-edge', null, req => {
+            return lrResponse().json({
+                valid: req.cookies.valid,
+                spacedName: req.cookies['bad name'] ?? null,
+                rawSpace: req.cookies.rawspace ?? null,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/cookie-edge',
+            headers: {
+                Cookie: 'valid=yes; bad name=no; rawspace=hello world',
+            },
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({
+            valid: 'yes',
+            spacedName: null,
+            rawSpace: null,
+        });
+    });
+
+    test('keeps malformed percent-encoded cookie values as raw safe data', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/cookie-malformed', null, req => {
+            return lrResponse().json({
+                malformed: req.cookies.malformed,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/cookie-malformed',
+            headers: {
+                Cookie: 'malformed=%E0%A4%A',
+            },
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({
+            malformed: '%E0%A4%A',
+        });
+    });
+
+    test('uses the last duplicate request cookie value', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/cookie-duplicates', null, req => {
+            return lrResponse().json({
+                session: req.cookies.session,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/cookie-duplicates',
+            headers: {
+                Cookie: 'session=first; session=second',
+            },
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ session: 'second' });
+    });
+
+    test('rejects invalid response cookie name, path, domain, maxAge, and partitioned options', async () => {
+        const cases = [
+            {
+                path: '/bad-cookie-name',
+                response: () => lrResponse().cookie('bad name', 'value').json({ ok: true } as const),
+            },
+            {
+                path: '/bad-cookie-path',
+                response: () => lrResponse().cookie('good', 'value', { path: '/safe;bad' }).json({ ok: true } as const),
+            },
+            {
+                path: '/bad-cookie-domain',
+                response: () => lrResponse().cookie('good', 'value', { domain: '-bad.example' }).json({ ok: true } as const),
+            },
+            {
+                path: '/bad-cookie-max-age',
+                response: () => lrResponse().cookie('good', 'value', { maxAge: -1 }).json({ ok: true } as const),
+            },
+            {
+                path: '/bad-cookie-partitioned',
+                response: () => lrResponse().cookie('good', 'value', { secure: false, partitioned: true }).json({ ok: true } as const),
+            },
+        ];
+
+        const server = await createTestServer(cases.map(({ path, response }) => {
+            return lrHandler(['GET'], path as `/${string}`, null, response);
+        }));
+
+        for (const testCase of cases) {
+            const response = await httpRequest(server, {
+                path: testCase.path,
+            });
+
+            expect(response.status).toBe(500);
+            expect(response.headers['set-cookie']).toBeUndefined();
+            expect(JSON.parse(response.body)).toEqual({ ok: false });
+        }
+    });
+});
+
+describe('more coverage: response status and redirect edge cases', () => {
+    test('supports unknown but valid status codes with an empty default reason phrase', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/status-299', null, () => {
+            return lrResponse().status(299).text('custom');
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/status-299',
+        });
+
+        expect(response.status).toBe(299);
+        expect(response.body).toBe('custom');
+    });
+
+    test('rejects invalid status codes through the fallback error response', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/status-invalid', null, () => {
+            return lrResponse().status(99).text('invalid');
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/status-invalid',
+        });
+
+        expect(response.status).toBe(500);
+        expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+
+    test('rejects redirect locations containing header-breaking characters', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/bad-redirect', null, () => {
+            return lrResponse().redirect('/safe\r\nX-Bad: yes');
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/bad-redirect',
+        });
+
+        expect(response.status).toBe(500);
+        expect(response.headers.location).toBeUndefined();
+        expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+});
