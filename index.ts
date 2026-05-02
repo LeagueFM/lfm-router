@@ -116,7 +116,7 @@ function parseParams(pathPrefix: string, path: string, reqPath: string): Record<
         throw new Error(`parseParams has restPathParts ${restPathParts} that are less than parts ${parts}`);
     }
 
-    let params: Record<string, string> = {};
+    let params: Record<string, string> = Object.create(null);
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i]!;

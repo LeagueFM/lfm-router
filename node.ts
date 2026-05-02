@@ -98,13 +98,13 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
                 }
             });
 
-            let fields: Record<string, string> = {};
+            let fields: Record<string, string> = Object.create(null);
             let files: Record<string, {
                 field: string;
                 name: string;
                 mimeType: string;
                 buffer: Buffer;
-            }[]> = {};
+            }[]> = Object.create(null);
 
             busboy.on("field", (name, val) => {
                 fields[name] = val;
@@ -144,13 +144,13 @@ function parseCookies(nodeReq: IncomingMessage): Record<string, string> {
         cookieHeader = cookieHeader[0];
     }
     if (!cookieHeader) {
-        return {};
+        return Object.create(null);
     };
 
     cookieHeader = cookieHeader.trim();
 
     const parts = cookieHeader.split(';');
-    let cookies: Record<string, string> = {};
+    let cookies: Record<string, string> = Object.create(null);
 
     for (const part of parts) {
         const [name, ...values] = part.trim().split('=');
@@ -197,7 +197,7 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
         path = `/${path}`;
     }
 
-    let query: Record<string, string> = {};
+    let query: Record<string, string> = Object.create(null);
 
     parsedUrl.searchParams.forEach((value, key) => {
         if (key === '_proto__') {
@@ -207,7 +207,7 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
         query[key] = value;
     });
 
-    let headers: Record<string, string> = {};
+    let headers: Record<string, string> = Object.create(null);
     for (const [key, value] of Object.entries(nodeReq.headers)) {
         if (key === '__proto__') {
             continue;
@@ -236,7 +236,7 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
         params: null,
         query,
         body,
-        data: {},
+        data: Object.create(null),
         ip: nodeReq.socket.remoteAddress as string,
         headers,
         cookies
@@ -274,7 +274,7 @@ export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrRespo
 
     nodeRes.writeHead(response.status, response.statusMessage);
 
-    let headers: Record<string, string | string[]> = {};
+    let headers: Record<string, string | string[]> = Object.create(null);
 
     if (Object.keys(response.cookies).length > 0) {
         headers['Set-Cookie'] = cookiesToHeader(response.cookies);

@@ -367,7 +367,7 @@ export class LrResponse<response extends lrResponseObject> {
         >
     >(cookies: cookies):
         LrResponse<responseWithCookies<response, cookies>> {
-        let newCookies = {} as Record<string, responseCookie>;
+        let newCookies = Object.create(null) as Record<string, responseCookie>;
 
         for (const [name, { value, ...options }] of Object.entries(cookies)) {
             newCookies[name] = {
@@ -400,6 +400,6 @@ export function lrResponse() {
             type: 'text',
             body: ''
         },
-        cookies: {}
+        cookies: Object.create(null)
     } as const);
 }
