@@ -5,13 +5,13 @@
   "private": true,
   "devDependencies": {
     "@types/busboy": "^1.5.4",
-    "@types/node": "^25.6.0"
+    "@types/node": "^25.6.0",
+    "zod": "^4.4.2"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
-    "busboy": "^1.6.0",
-    "zod": "^4.3.6"
+    "busboy": "^1.6.0"
   }
 }
