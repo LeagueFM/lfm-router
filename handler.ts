@@ -57,9 +57,10 @@ function pathToParts(path: string): pathParts {
                 throw new Error('Param name cannot be rest');
             }
 
-            if (name === '__proto__') {
-                throw new Error('Param name cannot be __proto__');
-            }
+            if (name === '__proto__') throw new Error('Param name cannot be __proto__');
+            if (name === 'prototype') throw new Error('Param name cannot be prototype');
+            if (name === 'constructor') throw new Error('Param name cannot be constructor');
+
 
             parts.push({
                 type: 'param',
@@ -102,9 +103,10 @@ function parseParams(pathPrefix: string, path: string, reqPath: string): Record<
         const restPart = restPathParts[i]!;
 
         if (part.type === 'param') {
-            if (part.name === '__proto__') {
-                throw new Error('Param name cannot be __proto__');
-            }
+            if (part.name === '__proto__') throw new Error('Param name cannot be __proto__');
+            if (part.name === 'prototype') throw new Error('Param name cannot be prototype');
+            if (part.name === 'constructor') throw new Error('Param name cannot be constructor');
+
 
             params[part.name] = restPart;
         } else if (part.type === 'rest') {

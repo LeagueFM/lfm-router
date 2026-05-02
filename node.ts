@@ -160,6 +160,8 @@ function parseCookies(nodeReq: IncomingMessage): Record<string, string> {
         const [name, ...values] = part.trim().split('=');
         if (!name || values.length === 0) continue;
         if (name === '__proto__') continue;
+        if (name === 'prototype') continue;
+        if (name === 'constructor') continue;
 
         cookies[name] = values.join('=');
     }
@@ -204,18 +206,18 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
     let query: Record<string, string> = Object.create(null);
 
     parsedUrl.searchParams.forEach((value, key) => {
-        if (key === '__proto__') {
-            return;
-        }
+        if (key === '__proto__') return;
+        if (key === 'prototype') return;
+        if (key === 'constructor') return;
 
         query[key] = value;
     });
 
     let headers: Record<string, string> = Object.create(null);
     for (const [key, value] of Object.entries(nodeReq.headers)) {
-        if (key === '__proto__') {
-            continue;
-        }
+        if (key === '__proto__') continue;
+        if (key === 'prototype') continue;
+        if (key === 'constructor') continue;
         if (!value) {
             continue;
         }
@@ -289,6 +291,8 @@ export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrRespo
 
     for (const [key, value] of Object.entries(response.headers)) {
         if (key === '__proto__') continue;
+        if (key === 'prototype') continue;
+        if (key === 'constructor') continue;
 
         headers[key] = value;
     }
