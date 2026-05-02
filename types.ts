@@ -2,6 +2,39 @@
 
 export type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
 
+export type lrRequest<
+    method extends httpMethod,
+    path extends `/${string}`,
+> = {
+    method: method;
+    path: path;
+    params: null; // null because there is no path definition
+    query: Record<string, string>; // not generic, because this is before zod parsing
+    body: unknown; // not generic, because this is before zod parsing
+    data: object;
+    ip: string;
+    headers: Record<string, string>;
+    cookies: Record<string, string>;
+};
+
+export type afterParseRequest<
+    method extends httpMethod,
+    path extends `/${string}`,
+    params extends Record<string, any>, // any, because it can be transformed with zod
+    query extends Record<string, any>, // any, because it can be transformed with zod
+    body
+> = {
+    method: method;
+    path: path;
+    params: params;
+    query: query;
+    body: body;
+    data: object;
+    ip: string;
+    headers: Record<string, string>;
+    cookies: Record<string, string>;
+};
+
 export type simplify<T> =
     T extends object
     ? { [K in keyof T]: T[K] }
