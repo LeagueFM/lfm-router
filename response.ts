@@ -20,7 +20,7 @@ const defaultStatusMessages = {
 } as const;
 
 type responseBody = {
-    toStringifyBody: any;
+    toStringifyBody: object;
     body: null;
 } | {
     toStringifyBody: null;
@@ -153,7 +153,7 @@ export class LrResponse<response extends lrResponseObject> {
         } as any);
     }
 
-    json<data>(data: data):
+    json<data extends object>(data: data):
         LrResponse<
             simplify<
                 Omit<response, 'headers' | 'body'>
