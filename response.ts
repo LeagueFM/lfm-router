@@ -42,7 +42,7 @@ export type responseCookieOptions = {
     maxAge: number;
 };
 
-const defaultResponseCookieOptions = {
+export const defaultResponseCookieOptions = {
     httpOnly: false,
     secure: false,
     partitioned: false,

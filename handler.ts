@@ -54,7 +54,6 @@ function pathToParts(path: string): pathParts {
     return parts;
 }
 
-
 function parseParams(pathPrefix: string, path: string, reqPath: string): Record<string, string> {
     if (!reqPath.startsWith(pathPrefix)) {
         throw new Error(`parseParams got reqPath ${reqPath} that doesn't start with pathPrefix ${pathPrefix}`);
@@ -101,7 +100,6 @@ export type lrHandlerCallback<
 > =
     (req: afterParseRequest<method, path, params, query, body>)
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
-
 
 export type generalValidations<
     methods extends '*' | httpMethod[],
