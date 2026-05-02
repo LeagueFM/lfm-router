@@ -243,6 +243,32 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
     return req;
 }
 
-export function sendNodeResponse(nodeRes: ServerResponse, response: LrResponse<lrResponseObject>): void {
+function cookiesToHeader(cookies: lrResponseObject['cookies']): string[] {
     // todo
+}
+
+export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrResponse<lrResponseObject>): void {
+    const response = responseClass.response;
+
+    nodeRes.writeHead(response.status, response.statusMessage);
+
+    let headers: Record<string, string | string[]> = {};
+
+    if (response.body.jsonBody !== null) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    if (Object.keys(response.cookies).length > 0) {
+        headers['Set-Cookie'] = cookiesToHeader(response.cookies);
+    }
+
+    for (const [key, value] of Object.entries(response.headers)) {
+        if (key === '__proto__') continue;
+
+        headers[key] = value;
+    }
+
+    // todo: body
+
+    nodeRes.end();
 }
