@@ -131,7 +131,7 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends gen
                     });
                 }
             } else if (handler instanceof LrRouter) {
-                const match = handler.#matchInternal(currentPathPrefix, method, restPath as `/${string}`);
+                const match = handler.#matchInternal(currentPathPrefix, method, path);
 
                 if (match.matches.length > 0) {
                     matches.push(match);
