@@ -232,8 +232,13 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
 
     const cookies = parseCookies(nodeReq);
 
+    const method = nodeReq.method as string;
+    if (!httpMethods.includes(method as httpMethod)) {
+        throw new Error('Invalid method');
+    }
+
     const req: generalRequest = {
-        method: nodeReq.method as httpMethod,
+        method: method as httpMethod,
         path: path as `/${string}`,
         params: null,
         query,
