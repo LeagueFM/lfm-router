@@ -20,11 +20,14 @@ const defaultStatusMessages = {
 } as const;
 
 type responseBody = {
-    jsonBody: object;
-    body: null;
+    type: 'json';
+    body: object;
 } | {
-    jsonBody: null;
+    type: 'text';
     body: string;
+} | {
+    type: 'buffer';
+    body: Buffer;
 };
 
 export type responseCookieOptions = {
@@ -159,7 +162,7 @@ export class LrResponse<response extends lrResponseObject> {
                 Omit<response, 'headers' | 'body'>
                 & {
                     headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'application/json' }>;
-                    body: { jsonBody: data; body: null }
+                    body: { type: 'json'; body: data; }
                 }
             >
         > {
@@ -182,7 +185,7 @@ export class LrResponse<response extends lrResponseObject> {
                 Omit<response, 'headers' | 'body'>
                 & {
                     headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/plain' }>;
-                    body: { jsonBody: null; body: text }
+                    body: { type: 'text'; body: text; }
                 }
             >
         > {
@@ -206,7 +209,7 @@ export class LrResponse<response extends lrResponseObject> {
                     status: 307;
                     statusMessage: (typeof defaultStatusMessages)[307];
                     headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain' }>;
-                    body: { jsonBody: null; body: '' }
+                    body: { type: 'text'; body: ''; }
                 } &
                 Omit<response, 'status' | 'statusMessage' | 'headers' | 'body'>
             >
@@ -234,7 +237,7 @@ export class LrResponse<response extends lrResponseObject> {
                     status: 308;
                     statusMessage: (typeof defaultStatusMessages)[308];
                     headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain' }>;
-                    body: { jsonBody: null; body: '' }
+                    body: { type: 'text'; body: ''; }
                 } &
                 Omit<response, 'status' | 'statusMessage' | 'headers' | 'body'>
             >
@@ -333,7 +336,7 @@ export function lrResponse() {
             'Content-Type': 'text/html',
         },
         body: {
-            jsonBody: null,
+            type: 'text',
             body: ''
         },
         cookies: {}
