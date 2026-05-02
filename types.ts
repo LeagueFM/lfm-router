@@ -1,5 +1,9 @@
 // © 2026 Oscar Knap - Alle rechten voorbehouden
 
+import type z from "zod";
+import type { LrHandler, lrNext } from "./handler";
+import type { LrRouter, lrRouterRequirements } from "./router";
+
 export type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
 
 export type lrRequest<
@@ -150,3 +154,38 @@ export type pathDefinitionToParams<definitionPath extends string> =
 export type methodsDefinitionToMethods<definitionMethods extends '*' | httpMethod[]> =
     definitionMethods extends '*' ? httpMethod
     : definitionMethods[number];
+
+export type canRouterCallNext<
+    pathPrefix extends '' | `/${string}`,
+    handlers extends any[], // can't be typed better here
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+> =
+    handlers extends [infer firstHandler, ...infer restHandlers]
+    ? (
+        firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
+        ? (
+            matchRequest<firstHandlerMethods, `${pathPrefix}${firstHandlerPath}`, testMethod, testPath> extends true
+            ? (
+                (typeof lrNext) extends Awaited<ReturnType<firstHandlerCallback>>
+                ? canRouterCallNext<pathPrefix, restHandlers, testMethod, testPath>
+                : false
+            ) : (
+                canRouterCallNext<pathPrefix, restHandlers, testMethod, testPath>
+            )
+        ) : (
+            firstHandler extends LrRouter<infer lastHandlerPathPrefix, infer lastHandlerHandlers>
+            ? (
+                canRouterCallNext<`${pathPrefix}${lastHandlerPathPrefix}`, lastHandlerHandlers, testMethod, testPath> extends true
+                ? canRouterCallNext<pathPrefix, restHandlers, testMethod, testPath>
+                : false
+            ) : never // invalid lastHandler
+        )
+    ) : true; // empty handlers
+
+export type validationsToRequirements<
+    validations extends any // can't be typed better here
+> =
+    (validations extends { body: z.ZodType } ? { body: z.input<validations['body']> } : unknown)
+    & (validations extends { query: z.ZodType } ? { query: z.input<validations['query']> } : unknown);
+
