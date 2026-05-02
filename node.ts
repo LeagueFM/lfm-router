@@ -264,6 +264,10 @@ export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrRespo
         headers[key] = value;
     }
 
+    for (const [key, value] of Object.entries(headers)) {
+        nodeRes.setHeader(key, value);
+    }
+
     return new Promise((resolve, reject) => {
         if (response.body.type === 'json') {
             const stringified = JSON.stringify(response.body.body);
