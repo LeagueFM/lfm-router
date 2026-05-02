@@ -46,9 +46,9 @@ export type responseCookieOptions = {
 };
 
 export const defaultResponseCookieOptions = {
-    httpOnly: false,
-    secure: false,
-    partitioned: false,
+    httpOnly: true,
+    secure: true,
+    partitioned: true,
     sameSite: 'lax',
     path: '/',
     domain: '',
