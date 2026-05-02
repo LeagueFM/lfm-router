@@ -173,8 +173,8 @@ export class LrResponse<response extends lrResponseObject> {
                 'Content-Type': 'application/json',
             },
             body: {
-                jsonBody: data,
-                body: null
+                type: 'json',
+                body: data
             }
         } as any);
     }
@@ -196,8 +196,67 @@ export class LrResponse<response extends lrResponseObject> {
                 'Content-Type': 'text/plain',
             },
             body: {
-                jsonBody: null,
+                type: 'text',
                 body: text
+            }
+        } as any);
+    }
+
+    html<html extends string>(html: html):
+        LrResponse<
+            simplify<
+                Omit<response, 'headers' | 'body'>
+                & {
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/html' }>;
+                    body: { type: 'text'; body: html; }
+                }
+            >
+        > {
+        return new LrResponse({
+            ...this.response,
+            headers: {
+                ...this.response.headers,
+                'Content-Type': 'text/html',
+            },
+            body: {
+                type: 'text',
+                body: html
+            }
+        } as any);
+    }
+
+    buffer<buffer extends Buffer>(buffer: buffer):
+        LrResponse<
+            simplify<
+                Omit<response, 'body'>
+                & {
+                    body: { type: 'buffer'; body: buffer; }
+                }
+            >
+        > {
+        return new LrResponse({
+            ...this.response,
+            body: {
+                type: 'buffer',
+                body: buffer
+            }
+        } as any);
+    }
+
+    type<type extends string>(type: type):
+        LrResponse<
+            simplify<
+                Omit<response, 'headers'>
+                & {
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': type }>;
+                }
+            >
+        > {
+        return new LrResponse({
+            ...this.response,
+            headers: {
+                ...this.response.headers,
+                'Content-Type': type,
             }
         } as any);
     }
@@ -224,7 +283,7 @@ export class LrResponse<response extends lrResponseObject> {
                 'Content-Type': 'text/plain',
             },
             body: {
-                jsonBody: null,
+                type: 'text',
                 body: ''
             }
         } as any);
@@ -252,7 +311,7 @@ export class LrResponse<response extends lrResponseObject> {
                 'Content-Type': 'text/plain',
             },
             body: {
-                jsonBody: null,
+                type: 'text',
                 body: ''
             }
         } as any);
