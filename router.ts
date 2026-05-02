@@ -1,8 +1,8 @@
 // © 2026 Oscar Knap - Alle rechten voorbehouden
 
 import type { generalValidations, lrHandlerCallback } from "./handler";
-import type { canRouterCallNext, httpMethod, lrRequest, matchRequest, recursiveSimplify, validationsToRequirements } from "./types";
-import type { lrResponseObject } from "./response";
+import type { canRouterCallNext, lrRequest, matchRequest, recursiveSimplify, validationsToRequirements } from "./types";
+import type { lrResponseObject, httpMethod } from "./response";
 
 import { lrNext } from "./handler";
 import { LrHandler } from "./handler";

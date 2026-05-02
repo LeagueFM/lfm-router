@@ -2,9 +2,8 @@
 
 import type z from "zod";
 import type { LrHandler, lrNext } from "./handler";
-import type { LrRouter, lrRouterRequirements } from "./router";
-
-export type httpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
+import type { LrRouter } from "./router";
+import type { httpMethod } from "./response";
 
 export type lrRequest<
     method extends httpMethod,

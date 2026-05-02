@@ -2,6 +2,9 @@
 
 import type { simplify } from './types.ts';
 
+export const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'] as const;
+export type httpMethod = typeof httpMethods[number];
+
 const defaultStatusMessages = {
     200: 'OK',
     201: 'Created',

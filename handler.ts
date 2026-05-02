@@ -1,8 +1,8 @@
 // © 2026 Oscar Knap - Alle rechten voorbehouden
 
 import type z from "zod";
-import type { LrResponse, lrResponseObject } from "./response";
-import type { afterParseRequest, httpMethod, lrRequest, matchRequest, methodsDefinitionToMethods, pathDefinitionToParams, pathDefinitionToType } from "./types";
+import type { LrResponse, lrResponseObject, httpMethod } from "./response";
+import type { afterParseRequest, lrRequest, matchRequest, methodsDefinitionToMethods, pathDefinitionToParams, pathDefinitionToType } from "./types";
 
 // typescript sometimes converts the Symbol('lrNext') to symbol, so we just convert it to a special object
 export const lrNext = Symbol('lrNext') as unknown as 'lrNext' & { __lrNext: symbol };

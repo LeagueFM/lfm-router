@@ -4,8 +4,8 @@ import { LrResponse } from "./response";
 import { sendNodeResponse, transformNodeRequest } from "./node";
 import { lrNext } from "./handler";
 
-import type { canRouterCallNext, httpMethod, lrRequest } from "./types";
-import type { lrResponseObject, responseCookieOptions, responseWithCookies, responseWithHeaders } from "./response";
+import type { canRouterCallNext, lrRequest } from "./types";
+import type { lrResponseObject, responseCookieOptions, responseWithCookies, responseWithHeaders, httpMethod } from "./response";
 import type { generalHandlerOrRouter, LrRouter, lrRouterRequirements, lrRouterReturn } from "./router";
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
