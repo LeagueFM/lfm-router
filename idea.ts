@@ -1,7 +1,7 @@
 // © 2026 Oscar Knap - Alle rechten voorbehouden
 
 import { lrHandler, lrApp, lrRouter, lrNext, lrResponse } from ".";
-import type { lrRouterReturn, lrRouterRequirements, lrAppReturn, lrAppRequirements, LrResponse, lrResponseObject } from ".";
+import type { lrRouterReturn, lrRouterRequirements, lrAppReturn, lrAppRequirements } from ".";
 import { z } from 'zod';
 
 const handler1 = lrHandler('*', '/foo/*', {
