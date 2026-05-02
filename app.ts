@@ -108,18 +108,28 @@ class LrApp<
 
             return response as lrAppReturn<this, testMethod, testPath>;
 
-        } catch (e2) {
-            console.warn('[lfm-router] Unhandled error', e2);
+        } catch (e) {
+            console.warn('[lfm-router] Unhandled error in execute', e);
             return this.errorResponse as lrAppReturn<this, testMethod, testPath>;
         }
     }
 
     async nodeExecute(nodeReq: IncomingMessage, nodeRes: ServerResponse): Promise<void> {
-        const req = await transformNodeRequest(nodeReq);
+        let response: LrResponse<lrResponseObject>;
+        try {
+            const req = await transformNodeRequest(nodeReq);
 
-        const response = await this.execute(req);
+            response = await this.execute(req);
+        } catch (e) {
+            console.warn('[lfm-router] Unhandled error in nodeExecute', e);
+            response = this.errorResponse;
+        }
 
-        await sendNodeResponse(nodeRes, response);
+        try {
+            await sendNodeResponse(nodeRes, response);
+        } catch (e) {
+            console.warn('[lfm-router] Unhandled error in sendNodeResponse', e);
+        }
     }
 
     createServer(): Server {
