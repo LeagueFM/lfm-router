@@ -41,6 +41,7 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
 
                 body += chunk.toString();
             });
+            nodeReq.on("error", reject);
             nodeReq.on("end", () => {
                 if (!body) {
                     return reject(new Error("No body"));
@@ -67,6 +68,7 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
 
                 body += chunk.toString();
             });
+            nodeReq.on("error", reject);
             nodeReq.on("end", () => {
                 try {
                     resolve(querystring.parse(body));

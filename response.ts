@@ -397,7 +397,7 @@ export function lrResponse() {
         status: 200,
         statusMessage: defaultStatusMessages[200],
         headers: {
-            'Content-Type': 'text/html',
+            'Content-Type': 'text/plain',
         },
         body: {
             type: 'text',

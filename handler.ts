@@ -35,13 +35,35 @@ function pathToParts(path: string): pathParts {
                 throw new Error('* path part must be last');
             }
 
+            if (parts.find(part => part.type === 'rest')) {
+                throw new Error('rest part already exists');
+            }
+
             parts.push({
                 type: 'rest',
             });
         } else if (part.startsWith(':')) {
+            const name = part.slice(1);
+
+            if (parts.find(part => part.type === 'param' && part.name === name)) {
+                throw new Error(`Param ${name} already exists`);
+            }
+
+            if (name.trim().length === 0) {
+                throw new Error('Param name cannot be empty');
+            }
+
+            if (name === 'rest') {
+                throw new Error('Param name cannot be rest');
+            }
+
+            if (name === '__proto__') {
+                throw new Error('Param name cannot be __proto__');
+            }
+
             parts.push({
                 type: 'param',
-                name: part.slice(1),
+                name,
             });
         } else {
             parts.push({
@@ -80,6 +102,10 @@ function parseParams(pathPrefix: string, path: string, reqPath: string): Record<
         const restPart = restPathParts[i]!;
 
         if (part.type === 'param') {
+            if (part.name === '__proto__') {
+                throw new Error('Param name cannot be __proto__');
+            }
+
             params[part.name] = restPart;
         } else if (part.type === 'rest') {
             params['*'] = restPathParts.slice(i).join('/');
