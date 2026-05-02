@@ -3,6 +3,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { request } from "node:http";
 import type { Server } from "node:http";
+import { connect } from "node:net";
 import { z } from "zod";
 
 import { lrApp, lrHandler, lrNext, lrResponse, lrRouter } from ".";
@@ -83,6 +84,64 @@ function httpRequest(server: Server, options: {
     });
 }
 
+function multipartBody(boundary: string, parts: {
+    name: string;
+    value: string;
+    filename?: string;
+    contentType?: string;
+}[]): string {
+    return parts.map(part => {
+        const disposition = [
+            `form-data; name="${part.name}"`,
+            part.filename ? `filename="${part.filename}"` : null,
+        ].filter(Boolean).join('; ');
+
+        return [
+            `--${boundary}`,
+            `Content-Disposition: ${disposition}`,
+            part.contentType ? `Content-Type: ${part.contentType}` : null,
+            '',
+            part.value,
+        ].filter(line => line !== null).join('\r\n');
+    }).join('\r\n') + `\r\n--${boundary}--\r\n`;
+}
+
+function rawHttpRequest(server: Server, requestText: string): Promise<TestResponse> {
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+        throw new Error('Test server is not listening on a TCP port');
+    }
+
+    return new Promise((resolve, reject) => {
+        const socket = connect(address.port, '127.0.0.1');
+        let responseText = '';
+
+        socket.setEncoding('utf8');
+        socket.on('connect', () => {
+            socket.write(requestText);
+        });
+        socket.on('data', chunk => {
+            responseText += chunk;
+        });
+        socket.on('error', reject);
+        socket.on('end', () => {
+            const [head = '', body = ''] = responseText.split('\r\n\r\n');
+            const statusLine = head.split('\r\n')[0] ?? '';
+            const status = Number(statusLine.split(' ')[1]);
+            const headers: TestResponse['headers'] = Object.create(null);
+
+            for (const line of head.split('\r\n').slice(1)) {
+                const separatorIndex = line.indexOf(':');
+                if (separatorIndex <= 0) continue;
+
+                headers[line.slice(0, separatorIndex).toLowerCase()] = line.slice(separatorIndex + 1).trim();
+            }
+
+            resolve({ status, headers, body });
+        });
+    });
+}
+
 afterAll(async () => {
     await Promise.all(servers.map(server => new Promise<void>(resolve => {
         server.close(() => resolve());
@@ -152,6 +211,82 @@ describe('features: normal request handling', () => {
         });
     });
 
+    test('parses multipart fields and files', async () => {
+        const boundary = 'lfm-router-test-boundary';
+        const server = await createTestServer(lrHandler(['POST'], '/multipart', null, req => {
+            const body = req.body as {
+                fields: Record<string, string>;
+                files: Record<string, {
+                    name: string;
+                    mimeType: string;
+                    buffer: Buffer;
+                }[]>;
+            };
+
+            return lrResponse().json({
+                title: body.fields.title,
+                fileName: body.files.upload?.[0]?.name,
+                fileType: body.files.upload?.[0]?.mimeType,
+                fileText: body.files.upload?.[0]?.buffer.toString('utf8'),
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            method: 'POST',
+            path: '/multipart',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            },
+            body: multipartBody(boundary, [
+                { name: 'title', value: 'Quarter Final' },
+                { name: 'upload', filename: 'match.txt', contentType: 'text/plain', value: 'Ajax 2-1 PSV' },
+            ]),
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({
+            title: 'Quarter Final',
+            fileName: 'match.txt',
+            fileType: 'text/plain',
+            fileText: 'Ajax 2-1 PSV',
+        });
+    });
+
+    test('uses null for unsupported content types', async () => {
+        const server = await createTestServer(lrHandler(['POST'], '/raw', null, req => {
+            return lrResponse().json({
+                body: req.body,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            method: 'POST',
+            path: '/raw',
+            headers: {
+                'Content-Type': 'application/octet-stream',
+            },
+            body: 'raw-body',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ body: null });
+    });
+
+    test('handles root routes explicitly', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/', null, req => {
+            return lrResponse().json({
+                path: req.path,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ path: '/' });
+    });
+
     test('returns the configured no-handler response for unmatched routes', async () => {
         const server = await createTestServer(lrHandler(['GET'], '/known', null, () => {
             return lrResponse().json({ reached: true } as const);
@@ -188,6 +323,40 @@ describe('features: route matching and fallthrough', () => {
 
         expect(JSON.parse(getResponse.body)).toEqual({ method: 'GET' });
         expect(JSON.parse(postResponse.body)).toEqual({ method: 'POST' });
+    });
+
+    test('supports all explicitly allowed HTTP methods', async () => {
+        const methods = ['PUT', 'DELETE', 'PATCH', 'OPTIONS'] as const;
+        const server = await createTestServer(methods.map(method => lrHandler([method], '/resource', null, req => {
+            return lrResponse().json({ method: req.method } as const);
+        })));
+
+        for (const method of methods) {
+            const response = await httpRequest(server, {
+                method,
+                path: '/resource',
+            });
+
+            expect(response.status).toBe(200);
+            expect(JSON.parse(response.body)).toEqual({ method });
+        }
+    });
+
+    test('rejects HEAD before wildcard handlers run', async () => {
+        let handlerReached = false;
+        const server = await createTestServer(lrHandler('*', '/head', null, () => {
+            handlerReached = true;
+            return lrResponse().json({ reached: true } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            method: 'HEAD',
+            path: '/head',
+        });
+
+        expect(response.status).toBe(500);
+        expect(response.body).toBe('');
+        expect(handlerReached).toBe(false);
     });
 
     test('runs later matching handlers when an earlier handler returns lrNext', async () => {
@@ -366,6 +535,99 @@ describe('features: nested routers', () => {
         expect(response.status).toBe(200);
         expect(JSON.parse(response.body)).toEqual({ fallback: true });
     });
+
+    test('matches a top-level router with a non-empty prefix', async () => {
+        const server = await createRouterServer(lrRouter('/api', [
+            lrHandler(['GET'], '/status', null, () => {
+                return lrResponse().json({ ok: true } as const);
+            }),
+        ]));
+
+        const response = await httpRequest(server, {
+            path: '/api/status',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ ok: true });
+    });
+
+    test('does not confuse router prefix boundaries', async () => {
+        const server = await createRouterServer(lrRouter('', [
+            lrRouter('/api', [
+                lrHandler(['GET'], '/status', null, () => {
+                    return lrResponse().json({ ok: true } as const);
+                }),
+            ]),
+        ]));
+
+        const response = await httpRequest(server, {
+            path: '/apiadmin/status',
+        });
+
+        expect(response.status).toBe(404);
+        expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+});
+
+describe('features: direct execute APIs', () => {
+    test('executes routers directly without Node HTTP', async () => {
+        const router = lrRouter('', [
+            lrHandler(['GET'], '/direct/:id', null, (req: any) => {
+                const params = req.params as Record<string, string>;
+
+                return lrResponse().json({ id: params.id } as const);
+            }),
+        ]);
+
+        const response = await router.execute({
+            method: 'GET',
+            path: '/direct/abc',
+            params: null,
+            query: Object.create(null),
+            body: null,
+            data: Object.create(null),
+            ip: '127.0.0.1',
+            headers: Object.create(null),
+            cookies: Object.create(null),
+        });
+
+        const lrResponseObject = response as any;
+
+        expect(lrResponseObject.response.status).toBe(200);
+        expect(lrResponseObject.response.body).toEqual({
+            type: 'json',
+            body: { id: 'abc' },
+        });
+    });
+
+    test('executes apps directly and applies global response hooks', async () => {
+        const app = lrApp(lrRouter('', [
+            lrHandler(['GET'], '/direct', null, () => lrResponse().text('ok')),
+        ]), {
+            errorResponse: lrResponse().status(500).json({ ok: false } as const),
+            noHandlerResponse: () => lrResponse().status(404).json({ ok: false } as const),
+            addResponseHeaders: async () => ({ 'X-Direct': 'yes' }),
+            addResponseCookies: async () => ({ direct: { value: 'yes' } }),
+        });
+
+        const response = await app.execute({
+            method: 'GET',
+            path: '/direct',
+            params: null,
+            query: Object.create(null),
+            body: null,
+            data: Object.create(null),
+            ip: '127.0.0.1',
+            headers: Object.create(null),
+            cookies: Object.create(null),
+        });
+
+        const lrResponseObject = response as any;
+
+        expect(lrResponseObject.response.status).toBe(200);
+        expect(lrResponseObject.response.headers['X-Direct']).toBe('yes');
+        expect(lrResponseObject.response.cookies.direct.value).toBe('yes');
+    });
 });
 
 describe('features: response helpers', () => {
@@ -403,6 +665,43 @@ describe('features: response helpers', () => {
         expect(response.headers['content-type']).toBe('application/octet-stream');
         expect(response.body).toBe('abc');
     });
+
+    test('supports html responses', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/html', null, () => {
+            return lrResponse().html('<h1>Hello</h1>');
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/html',
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.headers['content-type']).toBe('text/html');
+        expect(response.body).toBe('<h1>Hello</h1>');
+    });
+
+    test('supports bulk headers and cookies helpers', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/bulk', null, () => {
+            return lrResponse()
+                .headers({ 'X-One': '1', 'X-Two': '2' })
+                .cookies({
+                    one: { value: '1' },
+                    two: { value: '2', maxAge: 10 },
+                })
+                .json({ ok: true } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/bulk',
+        });
+
+        expect(response.headers['x-one']).toBe('1');
+        expect(response.headers['x-two']).toBe('2');
+        expect(response.headers['set-cookie']).toEqual([
+            'one=1; Path=/; Max-Age=31536000; HttpOnly; Secure; Partitioned; SameSite=Lax',
+            'two=2; Path=/; Max-Age=10; HttpOnly; Secure; Partitioned; SameSite=Lax',
+        ]);
+    });
 });
 
 describe('features: app options and error handling', () => {
@@ -431,6 +730,46 @@ describe('features: app options and error handling', () => {
             'global=yes; Path=/; Max-Age=31536000; HttpOnly; Secure; Partitioned; SameSite=Lax',
         ]);
         expect(JSON.parse(response.body)).toEqual({ ok: true });
+    });
+
+    test('supports async handlers, validations, and app hooks', async () => {
+        const app = lrApp(lrRouter('', [
+            lrHandler(['POST'], '/async/:id', {
+                body: z.object({ ok: z.literal(true) }),
+                params: z.object({ id: z.string() }),
+                failResponse: async () => lrResponse().status(400).json({ ok: false } as const),
+            }, async (req: any) => {
+                return lrResponse().json({
+                    id: req.params.id,
+                    ok: req.body.ok,
+                } as const);
+            }),
+        ]), {
+            errorResponse: lrResponse().status(500).json({ ok: false } as const),
+            noHandlerResponse: async () => lrResponse().status(404).json({ ok: false } as const),
+            addResponseHeaders: async () => ({ 'X-Async': 'yes' }),
+            addResponseCookies: async () => ({ async: { value: 'yes' } }),
+        });
+
+        const server = await listenToApp(app);
+        const response = await httpRequest(server, {
+            method: 'POST',
+            path: '/async/abc',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ok: true }),
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.headers['x-async']).toBe('yes');
+        expect(response.headers['set-cookie']).toEqual([
+            'async=yes; Path=/; Max-Age=31536000; HttpOnly; Secure; Partitioned; SameSite=Lax',
+        ]);
+        expect(JSON.parse(response.body)).toEqual({
+            id: 'abc',
+            ok: true,
+        });
     });
 
     test('uses errorResponseFunction for handler errors without leaking the thrown message', async () => {
@@ -477,6 +816,62 @@ describe('features: app options and error handling', () => {
         expect(response.body).not.toContain('global-header-failed');
         expect(JSON.parse(response.body)).toEqual({ fallback: true });
     });
+
+    test('falls back to errorResponse when callbacks return invalid values', async () => {
+        const invalidHandlerApp = lrApp(lrRouter('', [
+            lrHandler(['GET'], '/invalid-handler', null, () => ({ invalid: true }) as any),
+        ]), {
+            errorResponse: lrResponse().status(500).json({ fallback: true } as const),
+            noHandlerResponse: () => lrResponse().status(404).json({ ok: false } as const),
+        });
+
+        const invalidNoHandlerApp = lrApp(lrRouter('', []), {
+            errorResponse: lrResponse().status(500).json({ fallback: true } as const),
+            noHandlerResponse: (() => ({ invalid: true })) as any,
+        });
+
+        const invalidErrorFunctionApp = lrApp(lrRouter('', [
+            lrHandler(['GET'], '/throws', null, () => {
+                throw new Error('boom');
+            }),
+        ]), {
+            errorResponse: lrResponse().status(500).json({ fallback: true } as const),
+            noHandlerResponse: () => lrResponse().status(404).json({ ok: false } as const),
+            errorResponseFunction: (() => ({ invalid: true })) as any,
+        });
+
+        const invalidFailResponseApp = lrApp(lrRouter('', [
+            lrHandler(['POST'], '/validation', {
+                body: z.object({ ok: z.literal(true) }),
+                failResponse: (() => ({ invalid: true })) as any,
+            }, () => lrResponse().json({ ok: true } as const)),
+        ]), {
+            errorResponse: lrResponse().status(500).json({ fallback: true } as const),
+            noHandlerResponse: () => lrResponse().status(404).json({ ok: false } as const),
+        });
+
+        const invalidHandlerServer = await listenToApp(invalidHandlerApp);
+        const invalidNoHandlerServer = await listenToApp(invalidNoHandlerApp);
+        const invalidErrorFunctionServer = await listenToApp(invalidErrorFunctionApp);
+        const invalidFailResponseServer = await listenToApp(invalidFailResponseApp);
+
+        const responses = await Promise.all([
+            httpRequest(invalidHandlerServer, { path: '/invalid-handler' }),
+            httpRequest(invalidNoHandlerServer, { path: '/missing' }),
+            httpRequest(invalidErrorFunctionServer, { path: '/throws' }),
+            httpRequest(invalidFailResponseServer, {
+                method: 'POST',
+                path: '/validation',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ok: false }),
+            }),
+        ]);
+
+        for (const response of responses) {
+            expect(response.status).toBe(500);
+            expect(JSON.parse(response.body)).toEqual({ fallback: true });
+        }
+    });
 });
 
 describe('edge cases: route definitions', () => {
@@ -484,6 +879,16 @@ describe('edge cases: route definitions', () => {
         expect(() => lrHandler(['GET'], '/files/*/tail', null, () => {
             return lrResponse();
         })).toThrow('* path part must be last');
+    });
+
+    test('rejects empty and reserved param names', () => {
+        expect(() => lrHandler(['GET'], '/items/:', null, () => {
+            return lrResponse();
+        })).toThrow('Param name cannot be empty');
+
+        expect(() => lrHandler(['GET'], '/items/:rest', null, () => {
+            return lrResponse();
+        })).toThrow('Param name cannot be rest');
     });
 
     test('rejects duplicate and unsafe param names', () => {
@@ -509,6 +914,22 @@ describe('edge cases: route definitions', () => {
 
         expect(response.status).toBe(500);
         expect(response.headers['set-cookie']).toBeUndefined();
+        expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+
+    test('rejects invalid response header values without leaking them', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/bad-header', null, () => {
+            return lrResponse()
+                .header('X-Bad', 'safe\r\nInjected: bad')
+                .json({ ok: true } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/bad-header',
+        });
+
+        expect(response.status).toBe(500);
+        expect(response.headers['x-bad']).toBeUndefined();
         expect(JSON.parse(response.body)).toEqual({ ok: false });
     });
 });
@@ -715,6 +1136,56 @@ describe('security: path normalization and route matching', () => {
         expect(JSON.parse(response.body)).toEqual({ path: '/admin' });
     });
 
+    test('does not collapse repeated slashes into a protected route', async () => {
+        let handlerReached = false;
+        const server = await createTestServer(lrHandler(['GET'], '/admin', null, () => {
+            handlerReached = true;
+            return lrResponse().json({ reached: true } as const);
+        }));
+
+        const response = await rawHttpRequest(server, [
+            'GET //admin HTTP/1.1',
+            'Host: localhost',
+            'Connection: close',
+            '',
+            '',
+        ].join('\r\n'));
+
+        expect(response.status).toBe(500);
+        expect(handlerReached).toBe(false);
+        expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+
+    test('does not match encoded traversal after URL parsing normalizes it', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/files/:name', null, () => {
+            return lrResponse().json({ reached: true } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/files/%2e%2e',
+        });
+
+        expect(response.status).toBe(404);
+        expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+
+    test('keeps encoded backslash bytes as route data', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/files/:name', null, req => {
+            const params = req.params as Record<string, string>;
+
+            return lrResponse().json({
+                name: params.name,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/files/a%5cb',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ name: 'a%5cb' });
+    });
+
     test('does not let encoded literal paths bypass exact route matching', async () => {
         const server = await createTestServer(lrHandler(['GET'], '/admin', null, () => {
             return lrResponse().json({ reached: true } as const);
@@ -806,6 +1277,71 @@ describe('security: body parsing', () => {
         expect(response.status).toBe(500);
         expect(handlerReached).toBe(false);
         expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+
+    test('empty JSON bodies fail closed before the handler runs', async () => {
+        let handlerReached = false;
+        const server = await createTestServer(lrHandler(['POST'], '/json-empty', null, () => {
+            handlerReached = true;
+            return lrResponse().json({ reached: true } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            method: 'POST',
+            path: '/json-empty',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        expect(response.status).toBe(500);
+        expect(handlerReached).toBe(false);
+        expect(JSON.parse(response.body)).toEqual({ ok: false });
+    });
+
+    test('multipart bodies drop prototype-pollution field and file names', async () => {
+        const boundary = 'lfm-router-pollution-boundary';
+        const server = await createTestServer(lrHandler(['POST'], '/multipart-pollution', null, req => {
+            const body = req.body as {
+                fields: Record<string, string>;
+                files: Record<string, unknown[]>;
+            };
+
+            return lrResponse().json({
+                safeField: body.fields.safe,
+                protoField: body.fields.__proto__ ?? null,
+                constructorField: body.fields.constructor ?? null,
+                safeFiles: body.files.upload?.length ?? 0,
+                protoFiles: body.files.__proto__ ?? null,
+                constructorFiles: body.files.constructor ?? null,
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            method: 'POST',
+            path: '/multipart-pollution',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            },
+            body: multipartBody(boundary, [
+                { name: 'safe', value: 'yes' },
+                { name: '__proto__', value: 'polluted' },
+                { name: 'constructor', value: 'bad' },
+                { name: 'upload', filename: 'safe.txt', contentType: 'text/plain', value: 'safe' },
+                { name: '__proto__', filename: 'bad.txt', contentType: 'text/plain', value: 'bad' },
+                { name: 'constructor', filename: 'bad.txt', contentType: 'text/plain', value: 'bad' },
+            ]),
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({
+            safeField: 'yes',
+            protoField: null,
+            constructorField: null,
+            safeFiles: 1,
+            protoFiles: null,
+            constructorFiles: null,
+        });
     });
 
     test('urlencoded bodies parse into a null-prototype object and drop inherited pollution behavior', async () => {
