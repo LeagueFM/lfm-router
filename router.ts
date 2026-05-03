@@ -10,7 +10,7 @@ import { LrResponse, } from "./response";
 
 type generalRouterMatch = {
     type: 'router';
-    router: LrRouter<'' | `/${string}`, generalHandlerOrRouter[]>;
+    router: LrRouter<'' | `/${string}`, readonly generalHandlerOrRouter[]>;
     matches: generalRouterMatchReturn[];
 };
 
@@ -28,7 +28,7 @@ type generalRouterMatchReturn = generalHandlerMatch | generalRouterMatch;
 
 type routerMatchReturnInternal<
     pathPrefix extends '' | `/${string}`,
-    handlers extends any[], // can't be typed better here
+    handlers extends readonly any[], // can't be typed better here
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -70,7 +70,7 @@ type routerMatchReturnInternal<
 
 type routerMatchReturn<
     pathPrefix extends '' | `/${string}`,
-    handlers extends generalHandlerOrRouter[],
+    handlers extends readonly generalHandlerOrRouter[],
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -82,7 +82,7 @@ type routerMatchReturn<
 
 export type generalHandlerOrRouter = LrHandler<any, any, any, any> | LrRouter<any, any>;
 
-export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandlerOrRouter[]> {
+export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends readonly generalHandlerOrRouter[]> {
     pathPrefix: pathPrefix;
     handlers: handlers;
 
@@ -94,7 +94,7 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends gen
     match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
         routerMatchReturn<pathPrefix, handlers, testMethod, testPath> {
 
-        return this.#matchInternal('', method, path) as routerMatchReturn<pathPrefix, handlers, testMethod, testPath>;
+        return this.#matchInternal('', method, path) as unknown as routerMatchReturn<pathPrefix, handlers, testMethod, testPath>;
     }
 
     #matchInternal(previousPathPrefix: string, method: httpMethod, path: `/${string}`): generalRouterMatch {
@@ -203,7 +203,7 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends gen
 
 type routerReturnInternal<
     pathPrefix extends '' | `/${string}`,
-    handlers extends any[], // can't be typed better here
+    handlers extends readonly any[], // can't be typed better here
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -245,7 +245,7 @@ type routerReturnInternal<
     );
 
 export type lrRouterReturn<
-    router extends LrRouter<'' | `/${string}`, generalHandlerOrRouter[]>,
+    router extends LrRouter<'' | `/${string}`, readonly generalHandlerOrRouter[]>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -261,7 +261,7 @@ export type lrRouterReturn<
 
 type routerRequirementsInternal<
     pathPrefix extends '' | `/${string}`,
-    handlers extends any[], // can't be typed better here
+    handlers extends readonly any[], // can't be typed better here
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -297,7 +297,7 @@ type routerRequirementsInternal<
     ;
 
 export type lrRouterRequirements<
-    router extends LrRouter<'' | `/${string}`, generalHandlerOrRouter[]>,
+    router extends LrRouter<'' | `/${string}`, readonly generalHandlerOrRouter[]>,
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
@@ -306,6 +306,6 @@ export type lrRouterRequirements<
         recursiveSimplify<routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>>
     ) : never;
 
-export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends generalHandlerOrRouter[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
+export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends readonly generalHandlerOrRouter[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {
     return new LrRouter(pathPrefix, handlers);
 }

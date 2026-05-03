@@ -156,7 +156,7 @@ export type methodsDefinitionToMethods<definitionMethods extends '*' | httpMetho
 
 export type canRouterCallNext<
     pathPrefix extends '' | `/${string}`,
-    handlers extends any[], // can't be typed better here
+    handlers extends readonly any[], // can't be typed better here
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
