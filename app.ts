@@ -36,7 +36,7 @@ type generalAddResponseCookies =
 
 class LrApp<
     pathPrefix extends '' | `/${string}`,
-    handlers extends generalHandlerOrRouter[],
+    handlers extends readonly generalHandlerOrRouter[],
     errorResponse extends LrResponse<lrResponseObject>,
     noHandlerResponse extends noHandlerResponseFunction,
     errorResponseFunction extends generalErrorResponseFunction | undefined,
@@ -203,7 +203,7 @@ type responseWrapper<
 export type lrAppReturn<
     app extends LrApp<
         '' | `/${string}`,
-        generalHandlerOrRouter[],
+        readonly generalHandlerOrRouter[],
         LrResponse<lrResponseObject>,
         noHandlerResponseFunction,
         generalErrorResponseFunction | undefined,
@@ -246,7 +246,7 @@ export type lrAppReturn<
 export type lrAppRequirements<
     app extends LrApp<
         '' | `/${string}`,
-        generalHandlerOrRouter[],
+        readonly generalHandlerOrRouter[],
         LrResponse<lrResponseObject>,
         noHandlerResponseFunction,
         generalErrorResponseFunction | undefined,
@@ -260,7 +260,7 @@ export type lrAppRequirements<
 
 export function lrApp<
     pathPrefix extends '' | `/${string}`,
-    handlers extends generalHandlerOrRouter[],
+    handlers extends readonly generalHandlerOrRouter[],
     options extends {
         errorResponse: LrResponse<lrResponseObject>;
         noHandlerResponse: noHandlerResponseFunction;
