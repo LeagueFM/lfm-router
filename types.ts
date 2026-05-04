@@ -5,6 +5,10 @@ import type { LrHandler, lrNext } from "./handler";
 import type { LrRouter } from "./router";
 import type { httpMethod } from "./response";
 
+export interface requestData {
+    // user can augment this
+};
+
 export type lrRequest<
     method extends httpMethod,
     path extends `/${string}`,
@@ -14,7 +18,7 @@ export type lrRequest<
     params: null; // null because there is no path definition
     query: Record<string, string>; // not generic, because this is before zod parsing
     body: unknown; // not generic, because this is before zod parsing
-    data: object;
+    data: requestData;
     ip: string;
     headers: Record<string, string>;
     cookies: Record<string, string>;
@@ -32,7 +36,7 @@ export type afterParseRequest<
     params: params;
     query: query;
     body: body;
-    data: object;
+    data: requestData;
     ip: string;
     headers: Record<string, string>;
     cookies: Record<string, string>;
