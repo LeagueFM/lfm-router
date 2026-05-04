@@ -234,14 +234,19 @@ export class LrResponse<response extends lrResponseObject> {
     buffer<buffer extends Buffer>(buffer: buffer):
         LrResponse<
             simplify<
-                Omit<response, 'body'>
+                Omit<response, 'headers' | 'body'>
                 & {
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'application/octet-stream' }>;
                     body: { type: 'buffer'; body: buffer; }
                 }
             >
         > {
         return new LrResponse({
             ...this.response,
+            headers: {
+                ...this.response.headers,
+                'Content-Type': 'application/octet-stream',
+            },
             body: {
                 type: 'buffer',
                 body: buffer
