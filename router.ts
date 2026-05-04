@@ -17,9 +17,9 @@ type generalRouterMatch = {
 type generalHandlerMatch = {
     type: 'handler';
     handler: LrHandler<
-        httpMethod[] | '*',
+        '*' | httpMethod | httpMethod[],
         `/${string}`,
-        generalValidations<httpMethod[] | '*', `/${string}`>,
+        generalValidations<'*' | httpMethod | httpMethod[], `/${string}`>,
         lrHandlerCallback<httpMethod, `/${string}`, Record<string, any>, Record<string, any>, unknown>
     >;
 };

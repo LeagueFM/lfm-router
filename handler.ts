@@ -132,7 +132,7 @@ export type lrHandlerCallback<
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
 export type generalValidations<
-    methods extends '*' | httpMethod[],
+    methods extends '*' | httpMethod | httpMethod[],
     path extends string,
 > = null | {
     body?: z.ZodType;
@@ -149,7 +149,7 @@ export type generalValidations<
 };
 
 export class LrHandler<
-    methods extends '*' | httpMethod[],
+    methods extends '*' | httpMethod | httpMethod[],
     path extends string,
     validations extends generalValidations<methods, path>,
     callback extends lrHandlerCallback<
@@ -177,7 +177,10 @@ export class LrHandler<
 
     match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
         matchRequest<methods, path, testMethod, testPath> {
-        const methodMatches = this.methods === '*' || this.methods.includes(method);
+        let methodMatches = false;
+        if (this.methods === '*') methodMatches = true;
+        else if (typeof this.methods === 'string') methodMatches = (this.methods as string) === method;
+        else methodMatches = this.methods.includes(method);
 
         if (!methodMatches) return false as matchRequest<methods, path, testMethod, testPath>;
 
@@ -283,7 +286,7 @@ export class LrHandler<
 };
 
 export function lrHandler<
-    methods extends '*' | httpMethod[],
+    methods extends '*' | httpMethod | httpMethod[],
     path extends `/${string}`,
     validations extends generalValidations<methods, path>,
     callback extends lrHandlerCallback<

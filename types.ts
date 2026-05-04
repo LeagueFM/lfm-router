@@ -85,13 +85,14 @@ type matchPaths<definition extends string, test extends `/${string}`> =
         )
     );
 
-type matchMethods<definitionMethods extends '*' | httpMethod[], testMethod extends httpMethod> =
+type matchMethods<definitionMethods extends '*' | httpMethod | httpMethod[], testMethod extends httpMethod> =
     definitionMethods extends '*' ? true
+    : definitionMethods extends testMethod ? true
     : testMethod extends definitionMethods[number] ? true
     : false;
 
 export type matchRequest<
-    methods extends '*' | httpMethod[],
+    methods extends '*' | httpMethod | httpMethod[],
     path extends string,
     testMethod extends httpMethod,
     testPath extends `/${string}`
@@ -150,8 +151,9 @@ export type pathDefinitionToParams<definitionPath extends string> =
         [k in pathDefinitionToParamNames<definitionPath>[number]]: string;
     };
 
-export type methodsDefinitionToMethods<definitionMethods extends '*' | httpMethod[]> =
+export type methodsDefinitionToMethods<definitionMethods extends '*' | httpMethod | httpMethod[]> =
     definitionMethods extends '*' ? httpMethod
+    : definitionMethods extends httpMethod ? definitionMethods
     : definitionMethods[number];
 
 export type canRouterCallNext<
