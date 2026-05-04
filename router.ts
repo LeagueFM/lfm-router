@@ -98,14 +98,9 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends rea
     }
 
     #matchInternal(previousPathPrefix: string, method: httpMethod, path: `/${string}`): generalRouterMatch {
-        console.debug('#matchInternal', previousPathPrefix, method, path);
-
         const currentPathPrefix = `${previousPathPrefix}${this.pathPrefix}`;
 
-        console.debug('currentPathPrefix', currentPathPrefix);
-
         if (!path.startsWith(currentPathPrefix)) {
-            console.debug('Path doesn\'t start with currentPrefix, so returning no matches');
             return {
                 type: 'router',
                 router: this,
@@ -117,10 +112,7 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends rea
 
         if (restPath === '') restPath = '/';
 
-        console.debug('restPath', restPath);
-
         if (!restPath.startsWith('/')) {
-            console.debug('restPath doesn\'t start with /, so returning no matches');
             return {
                 type: 'router',
                 router: this,
@@ -148,8 +140,6 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends rea
                 }
             }
         }
-
-        console.debug('matches.length', matches.length);
 
         return {
             type: 'router',
