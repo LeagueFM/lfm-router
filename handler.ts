@@ -82,7 +82,9 @@ function parseParams(pathPrefix: string, path: string, reqPath: string): Record<
         throw new Error(`parseParams got reqPath ${reqPath} that doesn't start with pathPrefix ${pathPrefix}`);
     }
 
-    const restPath = reqPath.slice(pathPrefix.length);
+    let restPath = reqPath.slice(pathPrefix.length);
+
+    if (restPath === '') restPath = '/';
 
     if (!restPath.startsWith('/')) {
         throw new Error(`parseParams has restPath ${restPath} that doesn't start with /`);
