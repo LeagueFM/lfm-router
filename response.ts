@@ -167,7 +167,7 @@ export class LrResponse<response extends lrResponseObject> {
             simplify<
                 Omit<response, 'headers' | 'body'>
                 & {
-                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'application/json' }>;
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'application/json; charset=utf-8' }>;
                     body: { type: 'json'; body: data; }
                 }
             >
@@ -176,7 +176,7 @@ export class LrResponse<response extends lrResponseObject> {
             ...this.response,
             headers: {
                 ...this.response.headers,
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8',
             },
             body: {
                 type: 'json',
@@ -190,7 +190,7 @@ export class LrResponse<response extends lrResponseObject> {
             simplify<
                 Omit<response, 'headers' | 'body'>
                 & {
-                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/plain' }>;
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/plain; charset=utf-8' }>;
                     body: { type: 'text'; body: text; }
                 }
             >
@@ -199,7 +199,7 @@ export class LrResponse<response extends lrResponseObject> {
             ...this.response,
             headers: {
                 ...this.response.headers,
-                'Content-Type': 'text/plain',
+                'Content-Type': 'text/plain; charset=utf-8',
             },
             body: {
                 type: 'text',
@@ -213,7 +213,7 @@ export class LrResponse<response extends lrResponseObject> {
             simplify<
                 Omit<response, 'headers' | 'body'>
                 & {
-                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/html' }>;
+                    headers: simplify<Omit<response['headers'], 'Content-Type'> & { 'Content-Type': 'text/html; charset=utf-8' }>;
                     body: { type: 'text'; body: html; }
                 }
             >
@@ -222,7 +222,7 @@ export class LrResponse<response extends lrResponseObject> {
             ...this.response,
             headers: {
                 ...this.response.headers,
-                'Content-Type': 'text/html',
+                'Content-Type': 'text/html; charset=utf-8',
             },
             body: {
                 type: 'text',
@@ -273,7 +273,7 @@ export class LrResponse<response extends lrResponseObject> {
                 {
                     status: 307;
                     statusMessage: (typeof defaultStatusMessages)[307];
-                    headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain' }>;
+                    headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain; charset=utf-8' }>;
                     body: { type: 'text'; body: ''; }
                 } &
                 Omit<response, 'status' | 'statusMessage' | 'headers' | 'body'>
@@ -286,7 +286,7 @@ export class LrResponse<response extends lrResponseObject> {
             headers: {
                 ...this.response.headers,
                 'Location': url,
-                'Content-Type': 'text/plain',
+                'Content-Type': 'text/plain; charset=utf-8',
             },
             body: {
                 type: 'text',
@@ -301,7 +301,7 @@ export class LrResponse<response extends lrResponseObject> {
                 {
                     status: 308;
                     statusMessage: (typeof defaultStatusMessages)[308];
-                    headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain' }>;
+                    headers: simplify<Omit<response['headers'], 'Location' | 'Content-Type'> & { 'Location': url; 'Content-Type': 'text/plain; charset=utf-8' }>;
                     body: { type: 'text'; body: ''; }
                 } &
                 Omit<response, 'status' | 'statusMessage' | 'headers' | 'body'>
@@ -314,7 +314,7 @@ export class LrResponse<response extends lrResponseObject> {
             headers: {
                 ...this.response.headers,
                 'Location': url,
-                'Content-Type': 'text/plain',
+                'Content-Type': 'text/plain; charset=utf-8',
             },
             body: {
                 type: 'text',
@@ -398,7 +398,7 @@ export function lrResponse() {
         status: 200,
         statusMessage: defaultStatusMessages[200],
         headers: {
-            'Content-Type': 'text/plain',
+            'Content-Type': 'text/plain; charset=utf-8',
         },
         body: {
             type: 'text',
