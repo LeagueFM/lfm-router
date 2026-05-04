@@ -403,6 +403,6 @@ export function lrResponse() {
             type: 'text',
             body: ''
         },
-        cookies: Object.create(null)
+        cookies: Object.create(null) as {}
     } as const);
 }
