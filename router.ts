@@ -113,7 +113,9 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends rea
             };
         }
 
-        const restPath = path.slice(currentPathPrefix.length);
+        let restPath = path.slice(currentPathPrefix.length);
+
+        if (restPath === '') restPath = '/';
 
         console.debug('restPath', restPath);
 
