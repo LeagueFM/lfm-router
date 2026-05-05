@@ -25,7 +25,7 @@ export type lrRequest<
     cookies: Record<string, string>;
 };
 
-export type afterParseRequest<
+export type lrHandlerRequest<
     method extends httpMethod,
     path extends `/${string}`,
     params extends Record<string, any>, // any, because it can be transformed with zod

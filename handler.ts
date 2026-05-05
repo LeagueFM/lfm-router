@@ -2,7 +2,7 @@
 
 import type z from "zod";
 import { type LrResponse, type lrResponseObject, type httpMethod, httpMethods } from "./response";
-import type { afterParseRequest, lrRequest, matchRequest, methodsDefinitionToMethods, pathDefinitionToParams, pathDefinitionToType } from "./types";
+import type { lrHandlerRequest, lrRequest, matchRequest, methodsDefinitionToMethods, pathDefinitionToParams, pathDefinitionToType } from "./types";
 
 // typescript sometimes converts the Symbol('lrNext') to symbol, so we just convert it to a special object
 export const lrNext = Symbol('lrNext') as unknown as 'lrNext' & { __lrNext: symbol };
@@ -128,7 +128,7 @@ export type lrHandlerCallback<
     query extends Record<string, any>, // any, because it can be transformed with zod
     body extends any
 > =
-    (req: afterParseRequest<method, path, params, query, body>)
+    (req: lrHandlerRequest<method, path, params, query, body>)
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
 export type generalValidations<
