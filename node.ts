@@ -424,6 +424,9 @@ export function sendNodeResponse(nodeReq: IncomingMessage, nodeRes: ServerRespon
             nodeRes.end(response.body.body, resolve);
         } else if (response.body.type === 'buffer') {
             nodeRes.end(response.body.body, resolve);
+        } else if (response.body.type === 'arrayBuffer') {
+            const buffer = Buffer.from(response.body.body);
+            nodeRes.end(buffer, resolve);
         } else {
             nodeRes.end();
         }
