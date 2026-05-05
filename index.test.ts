@@ -255,7 +255,7 @@ describe('features: normal request handling', () => {
         });
 
         expect(response.status).toBe(201);
-        expect(response.headers['content-type']).toBe('text/plain');
+        expect(response.headers['content-type']).toBe('text/plain; charset=utf-8');
         expect(response.body).toBe('created');
     });
 
@@ -772,7 +772,7 @@ describe('features: response helpers', () => {
         });
 
         expect(response.status).toBe(200);
-        expect(response.headers['content-type']).toBe('text/html');
+        expect(response.headers['content-type']).toBe('text/html; charset=utf-8');
         expect(response.body).toBe('<h1>Hello</h1>');
     });
 
@@ -1211,7 +1211,7 @@ describe('security: headers', () => {
 
         expect(response.status).toBe(200);
         expect(response.headers['x-security-test']).toBe('present');
-        expect(response.headers['content-type']).toBe('application/json');
+        expect(response.headers['content-type']).toBe('application/json; charset=utf-8');
         expect(JSON.parse(response.body)).toEqual({ ok: true });
     });
 });
