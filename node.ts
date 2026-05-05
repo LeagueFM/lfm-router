@@ -318,13 +318,21 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
 
     const cookies = parseCookies(nodeReq);
 
-    const method = nodeReq.method as string;
+    let method = nodeReq.method as string;
+    let isHead = false;
+
+    if (method === 'HEAD') {
+        isHead = true;
+        method = 'GET';
+    }
+
     if (!httpMethods.includes(method as httpMethod)) {
         throw new Error('Invalid method');
     }
 
     const req: generalRequest = {
         method: method as httpMethod,
+        isHead,
         path: path as `/${string}`,
         params: null,
         query,
@@ -380,7 +388,7 @@ function cookiesToHeader(cookies: lrResponseObject['cookies']): string[] {
     });
 }
 
-export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrResponse<lrResponseObject>): Promise<void> {
+export function sendNodeResponse(nodeReq: IncomingMessage, nodeRes: ServerResponse, responseClass: LrResponse<lrResponseObject>): Promise<void> {
     const response = responseClass.response;
 
     let headers: Record<string, string | string[]> = Object.create(null);
@@ -402,6 +410,11 @@ export function sendNodeResponse(nodeRes: ServerResponse, responseClass: LrRespo
     }
 
     nodeRes.writeHead(response.status, response.statusMessage);
+
+    if (nodeReq.method === 'HEAD') {
+        nodeRes.end();
+        return Promise.resolve();
+    }
 
     return new Promise((resolve, reject) => {
         if (response.body.type === 'json') {

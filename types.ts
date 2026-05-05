@@ -14,6 +14,7 @@ export type lrRequest<
     path extends `/${string}`,
 > = {
     method: method;
+    isHead: method extends 'GET' ? boolean : false;
     path: path;
     params: null; // null because there is no path definition
     query: Record<string, string>; // not generic, because this is before zod parsing
@@ -32,6 +33,7 @@ export type afterParseRequest<
     body
 > = {
     method: method;
+    isHead: method extends 'GET' ? boolean : false;
     path: path;
     params: params;
     query: query;

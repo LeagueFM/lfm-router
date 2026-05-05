@@ -126,13 +126,13 @@ class LrApp<
         }
 
         try {
-            await sendNodeResponse(nodeRes, response);
+            await sendNodeResponse(nodeReq, nodeRes, response);
         } catch (e) {
             console.warn('[lfm-router] Unhandled error in sendNodeResponse', e);
 
             if (!nodeRes.headersSent) {
                 try {
-                    await sendNodeResponse(nodeRes, this.errorResponse);
+                    await sendNodeResponse(nodeReq, nodeRes, this.errorResponse);
                 } catch (fallbackError) {
                     console.warn('[lfm-router] Unhandled error while sending fallback errorResponse', fallbackError);
                     nodeRes.destroy();
