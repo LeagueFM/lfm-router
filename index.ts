@@ -1,8 +1,8 @@
 // © 2026 Oscar Knap - Alle rechten voorbehouden
 
-export type { requestData } from "./types";
+export type { requestData, lrRequest, } from "./types";
 
-export type { responseCookieOptions, httpMethod } from "./response";
+export type { responseCookieOptions, httpMethod, LrResponse, lrResponseObject } from "./response";
 export { defaultResponseCookieOptions, lrResponse } from "./response";
 
 export type { } from "./handler";
