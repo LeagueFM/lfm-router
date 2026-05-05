@@ -334,6 +334,7 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
         method: method as httpMethod,
         isHead,
         path: path as `/${string}`,
+        url: reqUrl as `/${string}`,
         params: null,
         query,
         body,

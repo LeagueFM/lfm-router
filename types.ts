@@ -16,6 +16,7 @@ export type lrRequest<
     method: method;
     isHead: method extends 'GET' ? boolean : false;
     path: path;
+    url: `${path}${string}`;
     params: null; // null because there is no path definition
     query: Record<string, string>; // not generic, because this is before zod parsing
     body: unknown; // not generic, because this is before zod parsing
@@ -35,6 +36,7 @@ export type lrHandlerRequest<
     method: method;
     isHead: method extends 'GET' ? boolean : false;
     path: path;
+    url: `${path}${string}`;
     params: params;
     query: query;
     body: body;
