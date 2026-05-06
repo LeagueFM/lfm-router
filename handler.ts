@@ -77,6 +77,61 @@ function pathToParts(path: string): pathParts {
     return parts;
 }
 
+export function match<
+    methods extends '*' | httpMethod | readonly httpMethod[],
+    path extends string,
+    testMethod extends httpMethod,
+    testPath extends `/${string}`
+>(
+    methods: methods,
+    path: path,
+    testMethod: testMethod,
+    testPath: testPath
+): matchRequest<methods, path, testMethod, testPath> {
+    let methodMatches = false;
+    if (methods === '*') methodMatches = true;
+    else if (typeof methods === 'string') methodMatches = (methods as string) === testMethod;
+    else methodMatches = methods.includes(testMethod);
+
+    if (!methodMatches) return false as matchRequest<methods, path, testMethod, testPath>;
+
+    if (!testPath.startsWith('/')) {
+        throw new Error(`Request path must start with /, got ${testPath}`);
+    }
+
+    const reqPathSplit = testPath.slice(1).split('/');
+
+    const pathParts = pathToParts(path);
+
+    if (reqPathSplit.length < pathParts.length) return false as matchRequest<methods, path, testMethod, testPath>;
+
+    let hasRest = false;
+
+    for (const stringI in pathParts) {
+        const i = parseInt(stringI);
+
+        const pathPart = pathParts[i]!;
+        const reqPart = reqPathSplit[i];
+
+        if (pathPart.type === 'literal' && pathPart.value !== reqPart) return false as matchRequest<methods, path, testMethod, testPath>;
+        if (pathPart.type === 'param') continue;
+        if (pathPart.type === 'rest') {
+            hasRest = true;
+            break;
+        }
+    }
+
+    if (reqPathSplit.length > pathParts.length) {
+        if (hasRest) {
+            return true as matchRequest<methods, path, testMethod, testPath>;
+        } else {
+            return false as matchRequest<methods, path, testMethod, testPath>;
+        }
+    }
+
+    return true as matchRequest<methods, path, testMethod, testPath>;
+}
+
 function parseParams(pathPrefix: string, path: string, reqPath: string): Record<string, string> {
     if (!reqPath.startsWith(pathPrefix)) {
         throw new Error(`parseParams got reqPath ${reqPath} that doesn't start with pathPrefix ${pathPrefix}`);
@@ -199,48 +254,7 @@ export class LrHandler<
 
     match<testMethod extends httpMethod, testPath extends `/${string}`>(method: testMethod, path: testPath):
         matchRequest<methods, path, testMethod, testPath> {
-        let methodMatches = false;
-        if (this.methods === '*') methodMatches = true;
-        else if (typeof this.methods === 'string') methodMatches = (this.methods as string) === method;
-        else methodMatches = this.methods.includes(method);
-
-        if (!methodMatches) return false as matchRequest<methods, path, testMethod, testPath>;
-
-        if (!path.startsWith('/')) {
-            throw new Error(`Request path must start with /, got ${path}`);
-        }
-
-        const reqPathSplit = path.slice(1).split('/');
-
-        const pathParts = pathToParts(this.path);
-
-        if (reqPathSplit.length < pathParts.length) return false as matchRequest<methods, path, testMethod, testPath>;
-
-        let hasRest = false;
-
-        for (const stringI in pathParts) {
-            const i = parseInt(stringI);
-
-            const pathPart = pathParts[i]!;
-            const reqPart = reqPathSplit[i];
-
-            if (pathPart.type === 'literal' && pathPart.value !== reqPart) return false as matchRequest<methods, path, testMethod, testPath>;
-            if (pathPart.type === 'param') continue;
-            if (pathPart.type === 'rest') {
-                hasRest = true;
-                break;
-            }
-        }
-
-        if (reqPathSplit.length > pathParts.length) {
-            if (hasRest) {
-                return true as matchRequest<methods, path, testMethod, testPath>;
-            } else {
-                return false as matchRequest<methods, path, testMethod, testPath>;
-            }
-        }
-
-        return true as matchRequest<methods, path, testMethod, testPath>;
+        return match(this.methods, this.path, method, path);
     }
 
     async execute(
