@@ -5,7 +5,7 @@ export type { requestData, lrRequest, lrHandlerRequest } from "./types";
 export type { responseCookieOptions, httpMethod, LrResponse, lrResponseObject } from "./response";
 export { defaultResponseCookieOptions, lrResponse, httpMethods } from "./response";
 
-export type { } from "./handler";
+export type { LrHandler } from "./handler";
 export { lrNext, lrHandler, match } from "./handler";
 
 export type { lrRouterReturn, lrRouterRequirements, lrGeneralRouterMatch, lrGeneralHandlerMatch, lrGeneralRouterMatchReturn } from "./router";
