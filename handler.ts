@@ -205,15 +205,9 @@ export type generalValidations<
 
 export type lrGeneralLrHandler = LrHandler<
     '*' | httpMethod | readonly httpMethod[],
-    string,
-    generalValidations<'*' | httpMethod | readonly httpMethod[], string>,
-    lrHandlerCallback<
-        httpMethod,
-        `/${string}`,
-        Record<string, any>,
-        Record<string, any>,
-        unknown
-    >
+    `/${string}`,
+    generalValidations<'*' | httpMethod | readonly httpMethod[], `/${string}`>,
+    lrHandlerCallback<httpMethod, `/${string}`, Record<string, any>, Record<string, any>, unknown>
 >;
 
 export class LrHandler<
