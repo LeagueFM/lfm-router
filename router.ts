@@ -32,7 +32,7 @@ type routerMatchReturnInternal<
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
-    handlers extends [infer firstHandler, ...infer restHandlers]
+    handlers extends readonly [infer firstHandler, ...infer restHandlers]
     ? (
         firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
         ? (
@@ -51,7 +51,7 @@ type routerMatchReturnInternal<
         ) : (
             firstHandler extends LrRouter<infer firstHandlerPathPrefix, infer firstHandlerHandlers>
             ? (
-                routerMatchReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends [...infer firstElements, infer lastElement]
+                routerMatchReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends readonly [...infer firstElements, infer lastElement]
                 ? (
                     [
                         {
@@ -228,7 +228,7 @@ type routerReturnInternal<
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
-    handlers extends [infer firstHandler, ...infer restHandlers]
+    handlers extends readonly [infer firstHandler, ...infer restHandlers]
     ? (
         firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
         ? (
@@ -286,7 +286,7 @@ type routerRequirementsInternal<
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
-    handlers extends [infer firstHandler, ...infer restHandlers]
+    handlers extends readonly [infer firstHandler, ...infer restHandlers]
     ? (
         firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
         ? (

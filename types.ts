@@ -170,7 +170,7 @@ export type canRouterCallNext<
     testMethod extends httpMethod,
     testPath extends `/${string}`
 > =
-    handlers extends [infer firstHandler, ...infer restHandlers]
+    handlers extends readonly [infer firstHandler, ...infer restHandlers]
     ? (
         firstHandler extends LrHandler<infer firstHandlerMethods, infer firstHandlerPath, infer firstHandlerValidations, infer firstHandlerCallback>
         ? (
