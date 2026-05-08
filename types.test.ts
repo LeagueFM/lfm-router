@@ -44,7 +44,7 @@ test("lrResponse builder returns LrResponse", () => {
 // ─── Handler return type inference ───
 
 test("handler returning lrNext only", () => {
-    const h = lrHandler(["GET"], "/pass", null, () => lrNext);
+    const h = lrHandler("GET", "/pass", null, () => lrNext);
     type Ret = ReturnType<typeof h.callback>;
     type _isLrNext = Ret extends typeof lrNext ? true : false;
     type _isResponse = Ret extends LrResponse<any> ? true : false;
@@ -53,7 +53,7 @@ test("handler returning lrNext only", () => {
 });
 
 test("handler returning LrResponse only", () => {
-    const h = lrHandler(["GET"], "/ok", null, () => {
+    const h = lrHandler("GET", "/ok", null, () => {
         return lrResponse().status(200).text("ok");
     });
     type Ret = ReturnType<typeof h.callback>;
@@ -64,7 +64,7 @@ test("handler returning LrResponse only", () => {
 });
 
 test("handler can return both lrNext and LrResponse", () => {
-    const h = lrHandler(["GET"], "/maybe", null, () => {
+    const h = lrHandler("GET", "/maybe", null, () => {
         return Math.random() > 0.5 ? lrNext : lrResponse().status(200).text("ok");
     });
     type Ret = ReturnType<typeof h.callback>;
@@ -78,7 +78,7 @@ test("handler can return both lrNext and LrResponse", () => {
 
 test("router with non-matching method returns lrNext", () => {
     const router = lrRouter("", [
-        lrHandler(["GET"], "/only-get", null, () => {
+        lrHandler("GET", "/only-get", null, () => {
             return lrResponse().status(200).text("get");
         }),
     ] as const);
@@ -89,7 +89,7 @@ test("router with non-matching method returns lrNext", () => {
 
 test("router with matching handler returns LrResponse", () => {
     const router = lrRouter("", [
-        lrHandler(["GET"], "/hello", null, () => {
+        lrHandler("GET", "/hello", null, () => {
             return lrResponse().status(200).json({ message: "hello" } as const);
         }),
     ] as const);
@@ -104,10 +104,10 @@ test("router with matching handler returns LrResponse", () => {
 
 const edgeRouter = lrRouter("", [
     lrRouter("/foo", [
-        lrHandler(["GET"], "/:id", null, () => {
+        lrHandler("GET", "/:id", null, () => {
             return lrResponse().json({ reached: true } as const);
         }),
-    ]),
+    ] as const),
 ] as const);
 
 test("nested prefix /foo consumes full path -> empty :id, no match", () => {
@@ -127,7 +127,7 @@ test("nested prefix /foo with extra path /foo/bar matches :id", () => {
 // ─── Edge case: root param with empty path vs value ───
 
 const rootParamRouter = lrRouter("", [
-    lrHandler(["GET"], "/:id", null, () => {
+    lrHandler("GET", "/:id", null, () => {
         return lrResponse().json({ reached: true } as const);
     }),
 ] as const);
@@ -151,7 +151,7 @@ test("root param /:id matches path /hello", () => {
 const deepEdgeRouter = lrRouter("", [
     lrRouter("/a", [
         lrRouter("/b", [
-            lrHandler(["GET"], "/:id", null, () => {
+            lrHandler("GET", "/:id", null, () => {
                 return lrResponse().json({ reached: true } as const);
             }),
         ]),
@@ -176,7 +176,7 @@ test("deep nested path /a/b/c matches :id", () => {
 
 test("lrApp with no match returns noHandlerResponse", () => {
     const router = lrRouter("", [
-        lrHandler(["GET"], "/exists", null, () => {
+        lrHandler("GET", "/exists", null, () => {
             return lrResponse().status(200).text("here");
         }),
     ] as const);
