@@ -1583,6 +1583,36 @@ describe('security: path normalization and route matching', () => {
             rest: 'a/b',
         });
     });
+
+    test('does not match a param route when the segment is empty due to a double slash', async () => {
+        let handlerReached = false;
+        const server = await createTestServer(lrHandler(['GET'], '/abc/:id/foo', null, () => {
+            handlerReached = true;
+            return lrResponse().json({ reached: true } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/abc//foo',
+        });
+
+        expect(response.status).toBe(404);
+        expect(handlerReached).toBe(false);
+    });
+
+    test('matches a rest route when there are zero remaining segments', async () => {
+        const server = await createTestServer(lrHandler(['GET'], '/abc/*', null, (req) => {
+            const params = req.params as Record<string, string>;
+            return lrResponse().json({
+                rest: params['*'],
+            } as const);
+        }));
+
+        const response = await httpRequest(server, {
+            path: '/abc',
+        });
+
+        expect(response.status).toBe(200);
+    });
 });
 
 describe('security: body parsing', () => {
