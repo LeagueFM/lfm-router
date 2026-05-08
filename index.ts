@@ -8,7 +8,7 @@ export { defaultResponseCookieOptions, lrResponse, httpMethods } from "./respons
 export type { } from "./handler";
 export { lrNext, lrHandler, match } from "./handler";
 
-export type { lrRouterReturn, lrRouterRequirements } from "./router";
+export type { lrRouterReturn, lrRouterRequirements, lrGeneralRouterMatch, lrGeneralHandlerMatch, lrGeneralRouterMatchReturn } from "./router";
 export { lrRouter } from "./router";
 
 export type { lrAppReturn, lrAppRequirements } from "./app";

@@ -8,13 +8,13 @@ import { lrNext } from "./handler";
 import { LrHandler } from "./handler";
 import { LrResponse, } from "./response";
 
-type generalRouterMatch = {
+export type lrGeneralRouterMatch = {
     type: 'router';
     router: LrRouter<'' | `/${string}`, readonly generalHandlerOrRouter[]>;
-    matches: generalRouterMatchReturn[];
+    matches: lrGeneralRouterMatchReturn[];
 };
 
-type generalHandlerMatch = {
+export type lrGeneralHandlerMatch = {
     type: 'handler';
     handler: LrHandler<
         '*' | httpMethod | readonly httpMethod[],
@@ -24,7 +24,7 @@ type generalHandlerMatch = {
     >;
 };
 
-type generalRouterMatchReturn = generalHandlerMatch | generalRouterMatch;
+export type lrGeneralRouterMatchReturn = lrGeneralHandlerMatch | lrGeneralRouterMatch;
 
 type routerMatchReturnInternal<
     pathPrefix extends '' | `/${string}`,
@@ -116,7 +116,7 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends rea
         return this.#matchInternal('', method, path) as unknown as routerMatchReturn<pathPrefix, handlers, testMethod, testPath>;
     }
 
-    #matchInternal(previousPathPrefix: string, method: httpMethod, path: `/${string}`): generalRouterMatch {
+    #matchInternal(previousPathPrefix: string, method: httpMethod, path: `/${string}`): lrGeneralRouterMatch {
         const currentPathPrefix = `${previousPathPrefix}${this.pathPrefix}`;
 
         if (!path.startsWith(currentPathPrefix)) {
@@ -139,7 +139,7 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends rea
             };
         }
 
-        let matches: generalRouterMatchReturn[] = [];
+        let matches: lrGeneralRouterMatchReturn[] = [];
 
         for (const handler of this.handlers) {
             if (handler instanceof LrHandler) {
@@ -185,7 +185,7 @@ export class LrRouter<pathPrefix extends '' | `/${string}`, handlers extends rea
 
     async #executeInternal(
         currentPathPrefix: string,
-        match: generalRouterMatchReturn,
+        match: lrGeneralRouterMatchReturn,
         req: lrRequest<httpMethod, `/${string}`>
     ): Promise<LrResponse<lrResponseObject> | typeof lrNext> {
         if (match.type === 'handler') {
