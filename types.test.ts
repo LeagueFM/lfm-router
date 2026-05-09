@@ -380,6 +380,18 @@ test("top-level router with /api prefix matches full path /api/status", () => {
     const _v: _isResponse = true;
 });
 
+const showsRouter = lrRouter("/shows", [
+    lrHandler("GET", "/", null, () => {
+        return lrResponse().json({ ok: true } as const);
+    }),
+] as const);
+
+test("top-level router /shows with root handler matches path /shows", () => {
+    type Ret = lrRouterReturn<typeof showsRouter, "GET", "/shows">;
+    type _isResponse = Ret extends LrResponse<any> ? true : false;
+    const _v: _isResponse = true;
+});
+
 test("top-level router with /api prefix does not match /status without prefix", () => {
     type Ret = lrRouterReturn<typeof prefixedRouter, "GET", "/status">;
     type _isLrNext = Ret extends typeof lrNext ? true : false;

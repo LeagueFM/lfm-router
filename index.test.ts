@@ -692,6 +692,21 @@ describe('features: nested routers', () => {
         expect(JSON.parse(response.body)).toEqual({ ok: true });
     });
 
+    test('router prefix /shows with root handler / matches request to /shows', async () => {
+        const server = await createRouterServer(lrRouter('/shows', [
+            lrHandler(['GET'], '/', null, () => {
+                return lrResponse().json({ ok: true } as const);
+            }),
+        ]));
+
+        const response = await httpRequest(server, {
+            path: '/shows',
+        });
+
+        expect(response.status).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ ok: true });
+    });
+
     test('does not confuse router prefix boundaries', async () => {
         const server = await createRouterServer(lrRouter('', [
             lrRouter('/api', [
