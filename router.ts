@@ -253,7 +253,7 @@ type routerReturnInternal<
             ? (
                 routerReturnInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
                 | (
-                    canRouterCallNext<firstHandlerPathPrefix, firstHandlerHandlers, testMethod, testPath> extends true
+                    canRouterCallNext<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends true
                     ? (
                         routerReturnInternal<pathPrefix, restHandlers, testMethod, testPath>
                     ) : never
@@ -304,7 +304,7 @@ type routerRequirementsInternal<
             ? (
                 routerRequirementsInternal<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath>
                 & (
-                    canRouterCallNext<firstHandlerPathPrefix, firstHandlerHandlers, testMethod, testPath> extends true
+                    canRouterCallNext<`${pathPrefix}${firstHandlerPathPrefix}`, firstHandlerHandlers, testMethod, testPath> extends true
                     ? (
                         routerRequirementsInternal<pathPrefix, restHandlers, testMethod, testPath>
                     ) : unknown
