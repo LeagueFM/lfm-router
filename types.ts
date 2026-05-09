@@ -57,8 +57,9 @@ export type recursiveSimplify<T> =
     : T;
 
 type partMatchPaths<definitionPart extends string, testPart extends string> =
-    definitionPart extends `:${string}` ? true
-    : definitionPart extends testPart ? true
+    definitionPart extends `:${string}` ? (
+        testPart extends '' ? false : true
+    ) : definitionPart extends testPart ? true
     : false;
 
 type matchPaths<definition extends string, test extends `/${string}`> =
