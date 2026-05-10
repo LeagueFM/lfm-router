@@ -173,13 +173,14 @@ function parseParams(pathPrefix: string, path: string, reqPath: string): Record<
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i]!;
-        const restPart = restPathParts[i]!;
+        const restPart = restPathParts[i];
 
         if (part.type === 'param') {
             if (part.name === '__proto__') throw new Error('Param name cannot be __proto__');
             if (part.name === 'prototype') throw new Error('Param name cannot be prototype');
             if (part.name === 'constructor') throw new Error('Param name cannot be constructor');
 
+            if (!restPart) throw new Error(`Param ${part.name} is missing`);
 
             params[part.name] = restPart;
         } else if (part.type === 'rest') {
