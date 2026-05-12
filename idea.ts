@@ -17,7 +17,7 @@ const handler1 = lrHandler('*', '/foo/*', {
     }),
     files: z.object({
         hi: lrFileSchema,
-        hi2: lrFileSchema.transform(({ name, ...rest }) => ({ name: 'hi2', ...rest }))
+        hi2: lrFileSchema.transform(({ name, ...rest }) => ({ name: 'hi2', ...rest })),
     }),
     failResponse: async (req, { bodyError, queryError, paramsError }) => {
         req.method;

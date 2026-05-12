@@ -3,6 +3,7 @@
 import type z from "zod";
 import { type LrResponse, type lrResponseObject, type httpMethod, httpMethods } from "./response";
 import type { lrHandlerRequest, lrRequest, matchRequest, methodsDefinitionToMethods, pathDefinitionToParams, pathDefinitionToType } from "./types";
+import type { file } from "./node";
 
 // typescript sometimes converts the Symbol('lrNext') to symbol, so we just convert it to a special object
 export const lrNext = Symbol('lrNext') as unknown as 'lrNext' & { __lrNext: symbol };
@@ -198,9 +199,10 @@ export type lrHandlerCallback<
     path extends `/${string}`,
     params extends Record<string, any>, // any, because it can be transformed with zod
     query extends Record<string, any>, // any, because it can be transformed with zod
+    files extends Record<string, any>, // any, because it can be transformed with zod
     body extends any
 > =
-    (req: lrHandlerRequest<method, path, params, query, body>)
+    (req: lrHandlerRequest<method, path, params, query, files, body>)
         => (lrHandlerReturn | Promise<lrHandlerReturn>);
 
 export type generalValidations<
@@ -210,6 +212,7 @@ export type generalValidations<
     body?: z.ZodType;
     query?: z.ZodType<unknown, Record<string, string>>;
     params?: z.ZodType<unknown, pathDefinitionToParams<path>>;
+    files?: z.ZodType<unknown, Record<string, file>>;
     failResponse: (
         req: lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>>,
         errors: {
@@ -224,7 +227,7 @@ export type lrGeneralLrHandler = LrHandler<
     '*' | httpMethod | readonly httpMethod[],
     `/${string}`,
     generalValidations<'*' | httpMethod | readonly httpMethod[], `/${string}`>,
-    lrHandlerCallback<httpMethod, `/${string}`, Record<string, any>, Record<string, any>, unknown>
+    lrHandlerCallback<httpMethod, `/${string}`, Record<string, any>, Record<string, any>, Record<string, any>, unknown>
 >;
 
 export class LrHandler<
@@ -236,6 +239,7 @@ export class LrHandler<
         pathDefinitionToType<path>,
         validations extends { params: any } ? z.output<validations['params']> : pathDefinitionToParams<path>,
         validations extends { query: any } ? z.output<validations['query']> : Record<string, string>,
+        validations extends { files: any } ? z.output<validations['files']> : Record<string, file>,
         validations extends { body: any } ? z.output<validations['body']> : unknown
     >
 > {
@@ -354,6 +358,7 @@ export function lrHandler<
         pathDefinitionToType<path>,
         validations extends { params: any } ? z.output<validations['params']> : pathDefinitionToParams<path>,
         validations extends { query: any } ? z.output<validations['query']> : Record<string, string>,
+        validations extends { files: any } ? z.output<validations['files']> : Record<string, file>,
         validations extends { body: any } ? z.output<validations['body']> : unknown
     >
 >(methods: methods, path: path, validations: validations, callback: callback): LrHandler<methods, path, validations, callback> {
