@@ -2293,14 +2293,10 @@ describe('stress and limits', () => {
         const boundary = 'lfm-router-large-file-boundary';
         const largeFile = 'x'.repeat(2 * 1024 * 1024);
         const server = await createTestServer(lrHandler(['POST'], '/large-file', null, req => {
-            const body = req.body as {
-                files: Record<string, { buffer: Buffer; name: string; mimeType: string; }[]>;
-            };
-
             return lrResponse().json({
-                name: body.files.upload?.[0]?.name,
-                mimeType: body.files.upload?.[0]?.mimeType,
-                size: body.files.upload?.[0]?.buffer.length,
+                name: req.files.upload?.name,
+                mimeType: req.files.upload?.mimeType,
+                size: req.files.upload?.buffer.length,
             } as const);
         }));
 
