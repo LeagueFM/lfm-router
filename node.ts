@@ -84,7 +84,7 @@ function sanitizeRecord(input: Record<string, unknown>): Record<string, unknown>
     return output;
 }
 
-function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
+function parseBody(nodeReq: IncomingMessage): Promise<{ body: unknown; files: Record<string, file>; }> {
     let contentType = nodeReq.headers['content-type'];
     if (contentType && Array.isArray(contentType)) {
         contentType = contentType[0];
@@ -116,7 +116,10 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
                     return reject(new Error("No body"));
                 }
                 try {
-                    resolve(JSON.parse(body));
+                    resolve({
+                        body: JSON.parse(body),
+                        files: Object.create(null)
+                    });
                 } catch (e) {
                     reject(e);
                 }
@@ -140,7 +143,10 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
             nodeReq.on("error", reject);
             nodeReq.on("end", () => {
                 try {
-                    resolve(sanitizeRecord(querystring.parse(body)));
+                    resolve({
+                        body: sanitizeRecord(querystring.parse(body)),
+                        files: Object.create(null)
+                    });
                 } catch (e) {
                     reject(e);
                 }
@@ -171,18 +177,13 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
                 }
             });
 
-            let fields: Record<string, string> = Object.create(null);
-            let files: Record<string, {
-                field: string;
-                name: string;
-                mimeType: string;
-                buffer: Buffer;
-            }[]> = Object.create(null);
+            let body: Record<string, string> = Object.create(null);
+            let files: Record<string, file> = Object.create(null);
 
             busboy.on("field", (name, val) => {
                 if (PROTOTYPE_POLLUTION_KEYS.has(name)) return;
 
-                fields[name] = val;
+                body[name] = val;
             });
 
             busboy.on("file", (name, file, info) => {
@@ -190,23 +191,24 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
                     file.resume();
                     return;
                 }
+                if (files[name]) {
+                    file.resume();
+                    return;
+                }
 
                 const chunks: Buffer[] = [];
                 file.on("data", d => chunks.push(d));
                 file.on("end", () => {
-                    if (!files[name]) files[name] = [];
-
-                    files[name].push({
-                        field: name,
+                    files[name] = {
                         name: info.filename,
                         mimeType: info.mimeType,
                         buffer: Buffer.concat(chunks),
-                    });
+                    };
                 });
             });
 
             busboy.on("finish", () => {
-                resolve({ fields, files });
+                resolve({ body, files });
             });
 
             busboy.on("error", reject);
@@ -215,7 +217,7 @@ function parseBody(nodeReq: IncomingMessage): Promise<unknown> {
         });
     }
 
-    return Promise.resolve(null);
+    return Promise.resolve({ body: null, files: Object.create(null) });
 }
 
 function parseCookies(nodeReq: IncomingMessage): Record<string, string> {
@@ -323,7 +325,7 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
         }
     }
 
-    const body = await parseBody(nodeReq);
+    const { body, files } = await parseBody(nodeReq);
 
     const cookies = parseCookies(nodeReq);
 
@@ -347,6 +349,7 @@ export async function transformNodeRequest(nodeReq: IncomingMessage): Promise<ge
         params: null,
         query,
         body,
+        files,
         data: Object.create(null),
         ip: nodeReq.socket.remoteAddress as string,
         headers,
