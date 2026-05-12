@@ -2,6 +2,9 @@
 
 export type { requestData, lrRequest, lrHandlerRequest } from "./types";
 
+export type { } from "./node";
+export { lrFileSchema } from "./node";
+
 export type { responseCookieOptions, httpMethod, LrResponse, lrResponseObject } from "./response";
 export { defaultResponseCookieOptions, lrResponse, httpMethods } from "./response";
 

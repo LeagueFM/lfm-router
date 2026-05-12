@@ -12,6 +12,13 @@ import { httpMethods } from "./response";
 
 import Busboy from 'busboy';
 import querystring from 'querystring';
+import z from "zod";
+
+export const lrFileSchema = z.object({
+    name: z.string(),
+    mimeType: z.string(),
+    buffer: z.instanceof(Buffer),
+});
 
 type generalRequest = lrRequest<httpMethod, `/${string}`>;
 
