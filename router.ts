@@ -1,7 +1,7 @@
 // © 2026 Oscar Knap - Alle rechten voorbehouden
 
 import type { generalValidations, lrHandlerCallback } from "./handler";
-import type { canRouterCallNext, lrRequest, matchRequest, recursiveSimplify, validationsToRequirements } from "./types";
+import type { canRouterCallNext, lrRequest, matchRequest, simplifyRequirements, validationsToRequirements } from "./types";
 import type { lrResponseObject, httpMethod } from "./response";
 
 import { lrNext } from "./handler";
@@ -313,7 +313,7 @@ type routerRequirementsInternal<
         )
     ) : (
         // no handlers
-        { body: {}, query: {} }
+        { body: {}; query: {}; files: {}; }
     )
     ;
 
@@ -324,7 +324,7 @@ export type lrRouterRequirements<
 > =
     router extends LrRouter<infer pathPrefix, infer handlers>
     ? (
-        recursiveSimplify<routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>>
+        simplifyRequirements<routerRequirementsInternal<pathPrefix, handlers, testMethod, testPath>>
     ) : never;
 
 export function lrRouter<pathPrefix extends '' | `/${string}`, handlers extends readonly generalHandlerOrRouter[]>(pathPrefix: pathPrefix, handlers: handlers): LrRouter<pathPrefix, handlers> {

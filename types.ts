@@ -55,9 +55,12 @@ export type simplify<T> =
     ? { [K in keyof T]: T[K] }
     : T;
 
-export type recursiveSimplify<T> =
+export type simplifyRequirements<T> =
     T extends object
-    ? { [K in keyof T]: recursiveSimplify<T[K]> }
+    ? (
+        T extends Buffer ? T
+        : { [K in keyof T]: simplifyRequirements<T[K]> }
+    )
     : T;
 
 type partMatchPaths<definitionPart extends string, testPart extends string> =
@@ -211,5 +214,6 @@ export type validationsToRequirements<
     validations extends any // can't be typed better here
 > =
     (validations extends { body: z.ZodType } ? { body: z.input<validations['body']> } : unknown)
-    & (validations extends { query: z.ZodType } ? { query: z.input<validations['query']> } : unknown);
+    & (validations extends { query: z.ZodType } ? { query: z.input<validations['query']> } : unknown)
+    & (validations extends { files: z.ZodType } ? { files: z.input<validations['files']> } : unknown);
 
