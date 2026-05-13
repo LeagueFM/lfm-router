@@ -214,13 +214,13 @@ export type generalValidations<
     params?: z.ZodType<unknown, pathDefinitionToParams<path>>;
     files?: z.ZodType<unknown, Record<string, file>>;
     failResponse: (
-        req: lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>>,
         errors: {
             bodyError: z.ZodError | null;
             filesError: z.ZodError | null;
             queryError: z.ZodError | null;
             paramsError: z.ZodError | null;
-        }
+        },
+        req: lrRequest<methodsDefinitionToMethods<methods>, pathDefinitionToType<path>>
     ) => LrResponse<lrResponseObject> | Promise<LrResponse<lrResponseObject>>;
 };
 
@@ -349,7 +349,7 @@ export class LrHandler<
             }
 
             if (bodyError || filesError || queryError || paramsError) {
-                const response = await this.validations.failResponse(req, { bodyError, filesError, queryError, paramsError });
+                const response = await this.validations.failResponse({ bodyError, filesError, queryError, paramsError }, req);
 
                 return response as any;
             }

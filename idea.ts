@@ -19,7 +19,7 @@ const handler1 = lrHandler('*', '/foo/*', {
         hi: lrFileSchema,
         hi2: lrFileSchema.transform(({ name, ...rest }) => ({ name: 'hi2', ...rest })),
     }),
-    failResponse: async (req, { bodyError, queryError, paramsError }) => {
+    failResponse: async ({ bodyError, queryError, paramsError }, req) => {
         req.method;
         req.path;
         req.params;

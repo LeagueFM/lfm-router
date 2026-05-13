@@ -584,7 +584,7 @@ describe('features: validations', () => {
                 name: z.string(),
                 count: z.number(),
             }),
-            failResponse: (_req, errors) => {
+            failResponse: (errors) => {
                 return lrResponse().status(400).json({
                     bodyError: Boolean(errors.bodyError),
                 } as const);
